@@ -407,7 +407,7 @@ function groupByPart(items) {
       groups.push(g);
       map.set(key, g);
     }
-    map.get(key).push(it);
+    map.get(key).items.push(it);   // 버그 수정: map 값은 {part, items} 객체 → items 배열에 push
   });
   return groups;
 }
