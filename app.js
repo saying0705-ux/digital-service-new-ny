@@ -1,20 +1,11 @@
 /**
  * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.0
- *
- * v5.0 변경 (HR 표 양식 적용)
- *  - 팀별 주요 실적: 카드형 → HR 표(테이블) 형식으로 전환
- *      컬럼: 업무 · 목적 · 시작일 · 종료일 · 진척율 · 진행사항 · 지연사유 · 예정사항
- *      · 진척율은 세로 막대(진행도 색상: 100% 그린 / 지연사유 있음 오렌지 / 그 외 블루)
- *      · 파트가 있으면 표 안에 파트 구분 행으로 묶음
- *      · 시작일/종료일은 시트(J/K열)에서 가져오며, 비어 있으면 '-' 표시
- *  - 전체 톤을 HR 화면처럼 밝은 코퍼레이트 스타일로 정돈 (style.css)
- *  - 기존 기능 유지: 주차 드롭다운 / 새로고침 / 탭 스크롤 / 기존 폼(금주·차주) 엑셀 다운로드 / 빈 섹션 자동 숨김
- *
- * v4.1 변경
- *  - 월별 매출현황 표 라벨 / 컬럼 헤더를 시트에서 동적으로 가져옴
+ *  - 팀별 주요 실적: HR 표 형식 (업무·목적·시작일·종료일·진척율·진행사항·지연사유·예정사항)
+ *  - 진척율: 세로 막대 (100% 그린 / 지연사유 있음 오렌지 / 그 외 블루)
+ *  - 시작일/종료일은 시트 J/K열에서 가져옴 (비면 '-')
  */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbz1lumAwyk9oOX6sMWGqwM9q3vOMrpJdL5dBL5WGU1_DxKW17HlgaL7YTwlDDeo5XDUEQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzYzyEAhX2wxxHsjeZ8bmOTBpVjKKy9jvBsAqQz3SwZGY3Vs0HcK-T-e_NZ8S4dZ1-NjA/exec";
 
 const NAV_OFFSET = 140;
 let navClickGuard = 0;
@@ -238,9 +229,6 @@ function renderKpis(kpis) {
   }).join("");
 }
 
-/* ============================================================
- * 월별 매출현황
- * ============================================================ */
 function renderMonthlySales(ms) {
   const el = document.getElementById("monthly-sales");
   if (!el) return;
@@ -341,10 +329,7 @@ function renderCeo(items) {
   `;
 }
 
-/* ============================================================
- * 팀별 주요 실적 — v5.0 HR 표(테이블) 양식
- *   컬럼: 업무 · 목적 · 시작일 · 종료일 · 진척율 · 진행사항 · 지연사유 · 예정사항
- * ============================================================ */
+/* ===== 팀별 주요 실적 — HR 표 양식 ===== */
 function renderTeams(teams) {
   const el = document.getElementById("teams");
   if (!el) return;
@@ -407,14 +392,14 @@ function groupByPart(items) {
       groups.push(g);
       map.set(key, g);
     }
-    map.get(key).items.push(it);   // 버그 수정: map 값은 {part, items} 객체 → items 배열에 push
+    map.get(key).items.push(it);   // map 값은 {part, items} 객체 → items 배열에 push
   });
   return groups;
 }
 
 function progClass(pct, hasDelay) {
   if (pct >= 100) return "p-done";   // 그린
-  if (hasDelay)   return "p-delay";  // 오렌지 (지연사유 있음)
+  if (hasDelay)   return "p-delay";  // 오렌지
   return "p-go";                     // 블루
 }
 
@@ -434,7 +419,6 @@ function renderItemRow(it) {
 
   const dash = s => (s && String(s).trim()) ? escape(s) : '<span class="muted">-</span>';
 
-  // 예정사항 = 계획(plan) + (있으면) 액션(action)
   let planHtml = (it.plan && it.plan.trim()) ? escape(it.plan) : "";
   if (it.action && it.action.trim()) {
     planHtml += (planHtml ? '<div class="sub-action">↳ ' : '<span class="sub-action">') + escape(it.action) + (planHtml ? '</div>' : '</span>');
@@ -562,9 +546,7 @@ function escape(s) {
     .replace(/"/g, "&quot;");
 }
 
-/* ============================================================
- * 📥 기존 폼(금주/차주) 엑셀 다운로드 — 기존 로직 유지
- * ============================================================ */
+/* ===== 기존 폼(금주/차주) 엑셀 다운로드 ===== */
 async function downloadWeeklyForm(data) {
   if (!data) throw new Error("표시 중인 데이터가 없습니다.");
   if (typeof ExcelJS === "undefined") throw new Error("엑셀 라이브러리(ExcelJS) 로드 실패");
@@ -627,9 +609,7 @@ async function downloadWeeklyForm(data) {
   ws.views = [{ state: "frozen", ySplit: 1, xSplit: 1 }];
 
   const buf = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buf], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -646,9 +626,7 @@ function thinBorder() {
 }
 
 function buildWeekLabels(period) {
-  const m = String(period || "").match(
-    /(\d{4})\.(\d{1,2})\.(\d{1,2})\s*~\s*(\d{4})\.(\d{1,2})\.(\d{1,2})/
-  );
+  const m = String(period || "").match(/(\d{4})\.(\d{1,2})\.(\d{1,2})\s*~\s*(\d{4})\.(\d{1,2})\.(\d{1,2})/);
   if (!m) return { cur: "금주 핵심 업무 및 논의사항", next: "차주 핵심 업무계획" };
   const cs = new Date(+m[1], +m[2] - 1, +m[3]);
   const ce = new Date(+m[4], +m[5] - 1, +m[6]);
