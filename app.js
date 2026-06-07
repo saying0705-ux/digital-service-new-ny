@@ -10,6 +10,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzYzyEAhX2wxxHsjeZ8bmOT
 const NAV_OFFSET = 140;
 let navClickGuard = 0;
 let LAST_DATA = null;
+let TEAM_FILTER = "all";   // all | star | delay
 
 document.addEventListener("DOMContentLoaded", () => {
   bindTopBar();
@@ -150,6 +151,14 @@ function render(d) {
         </button>
       </div>
     `);
+    parts.push(`
+      <div class="team-toolbar" id="team-toolbar">
+        <span class="tf-label">보기</span>
+        <button type="button" class="tf-btn active" data-filter="all">전체</button>
+        <button type="button" class="tf-btn" data-filter="star">핵심만</button>
+        <button type="button" class="tf-btn" data-filter="delay">지연만</button>
+      </div>
+    `);
     parts.push(`<div id="teams"></div>`);
   }
   if (hasDecisions) {
@@ -176,6 +185,8 @@ function render(d) {
       });
     });
   }
+
+  bindTeamToolbar();
 
   setupNavScroll({
     overview: hasMessages,
@@ -329,23 +340,59 @@ function renderCeo(items) {
   `;
 }
 
-/* ===== 팀별 주요 실적 — HR 표 양식 ===== */
+/* ===== 팀별 주요 실적 — HR 표 양식 (v5.1 최적화) ===== */
+function isStarItem(it) {
+  const t = String(it.title || "");
+  return it.isStar === true || /^\s*\[★\]\s*/.test(t) || /^\s*★\s*/.test(t);
+}
+
+function bindTeamToolbar() {
+  const bar = document.getElementById("team-toolbar");
+  if (!bar) return;
+  bar.querySelectorAll(".tf-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.filter === TEAM_FILTER);
+    btn.onclick = () => {
+      TEAM_FILTER = btn.dataset.filter;
+      bar.querySelectorAll(".tf-btn").forEach(b => b.classList.toggle("active", b.dataset.filter === TEAM_FILTER));
+      if (LAST_DATA) renderTeams(LAST_DATA.teams || {});
+    };
+  });
+}
+
 function renderTeams(teams) {
   const el = document.getElementById("teams");
   if (!el) return;
+  const filter = TEAM_FILTER;
+
   el.innerHTML = TEAM_ORDER.map(k => {
     const t = teams[k];
     if (!t || !t.items.length) return "";
-    const meta = TEAM_META[k];
-    const groups = groupByPart(t.items);
 
+    // 필터 적용 (핵심만 / 지연만)
+    let items = t.items.slice();
+    if (filter === "star")  items = items.filter(isStarItem);
+    if (filter === "delay") items = items.filter(it => it.gap && String(it.gap).trim());
+    if (!items.length) return "";
+
+    const meta = TEAM_META[k];
+    // 날짜 열 자동 숨김: 이 팀에 시작일/종료일이 하나도 없으면 두 열 제거
+    const hasDates = items.some(it => (it.startDate && it.startDate.trim()) || (it.endDate && it.endDate.trim()));
+    const colCount = hasDates ? 8 : 6;
+
+    const groups = groupByPart(items);
     const bodyRows = groups.map(g => {
+      // ★핵심 항목을 각 파트 맨 위로 정렬
+      const sorted = g.items.slice().sort((a, b) => (isStarItem(b) ? 1 : 0) - (isStarItem(a) ? 1 : 0));
       const partHeader = g.part
-        ? `<tr class="part-row ${meta.cls}"><td colspan="8">${escape(g.part)}</td></tr>`
+        ? `<tr class="part-row ${meta.cls}"><td colspan="${colCount}">${escape(g.part)}</td></tr>`
         : "";
-      const rows = g.items.map(renderItemRow).join("");
-      return partHeader + rows;
+      return partHeader + sorted.map(it => renderItemRow(it, hasDates)).join("");
     }).join("");
+
+    const dateHeads = hasDates ? `<th class="c-date">시작일</th><th class="c-date">종료일</th>` : "";
+    const colgroup = hasDates
+      ? `<col style="width:15%"/><col style="width:15%"/><col style="width:7%"/><col style="width:7%"/><col style="width:10%"/><col style="width:16%"/><col style="width:14%"/><col style="width:16%"/>`
+      : `<col style="width:17%"/><col style="width:18%"/><col style="width:11%"/><col style="width:18%"/><col style="width:16%"/><col style="width:20%"/>`;
 
     return `
       <section class="team-block" id="${meta.id}">
@@ -353,21 +400,16 @@ function renderTeams(teams) {
           <span class="team-dot" aria-hidden="true"></span>
           <span class="team-name">${escape(t.name)}</span>
           <span class="team-sub">${escape(meta.summary)}</span>
+          <span class="collapse-caret" aria-hidden="true">▾</span>
         </header>
         <div class="work-table-wrap">
           <table class="work-table">
-            <colgroup>
-              <col style="width: 15%"/><col style="width: 16%"/>
-              <col style="width: 7%"/><col style="width: 7%"/>
-              <col style="width: 8%"/><col style="width: 17%"/>
-              <col style="width: 14%"/><col style="width: 16%"/>
-            </colgroup>
+            <colgroup>${colgroup}</colgroup>
             <thead>
               <tr>
                 <th>업무</th>
                 <th>목적</th>
-                <th class="c-date">시작일</th>
-                <th class="c-date">종료일</th>
+                ${dateHeads}
                 <th class="c-prog">진척율</th>
                 <th>진행사항</th>
                 <th>지연사유</th>
@@ -380,6 +422,15 @@ function renderTeams(teams) {
       </section>
     `;
   }).join("");
+
+  if (!el.innerHTML.trim()) {
+    el.innerHTML = `<div class="loading">조건에 맞는 항목이 없습니다.</div>`;
+  }
+
+  // 팀 헤더 클릭 → 접기/펼치기
+  el.querySelectorAll(".team-card-head").forEach(h => {
+    h.onclick = () => h.closest(".team-block").classList.toggle("is-collapsed");
+  });
 }
 
 function groupByPart(items) {
@@ -397,25 +448,21 @@ function groupByPart(items) {
   return groups;
 }
 
-function progClass(pct, hasDelay) {
-  if (pct >= 100) return "p-done";   // 그린
-  if (hasDelay)   return "p-delay";  // 오렌지
-  return "p-go";                     // 블루
+// 진척율 색: 100% 그린 / 50~99% 블루 / 50% 미만 레드 (지연은 색이 아닌 별도 플래그로 표시)
+function progClass(pct) {
+  if (pct >= 100) return "p-done";
+  if (pct >= 50)  return "p-go";
+  return "p-low";
 }
 
-function renderItemRow(it) {
+function renderItemRow(it, hasDates) {
   const title = String(it.title || "");
-  const isStar = it.isStar === true
-    || /^\s*\[★\]\s*/.test(title)
-    || /^\s*★\s*/.test(title);
-  const titleClean = title
-    .replace(/^\s*\[★\]\s*/, "")
-    .replace(/^\s*★\s*/, "")
-    .trim();
+  const isStar = isStarItem(it);
+  const titleClean = title.replace(/^\s*\[★\]\s*/, "").replace(/^\s*★\s*/, "").trim();
 
   const pct = (typeof it.progress === "number") ? it.progress : 0;
-  const hasDelay = !!(it.gap && it.gap.trim());
-  const cls = progClass(pct, hasDelay);
+  const cls = progClass(pct);
+  const hasDelay = !!(it.gap && String(it.gap).trim());
 
   const dash = s => (s && String(s).trim()) ? escape(s) : '<span class="muted">-</span>';
 
@@ -431,18 +478,25 @@ function renderItemRow(it) {
     ${isStar ? '<span class="key-badge">핵심</span>' : ""}
   `;
 
+  const dateCells = hasDates
+    ? `<td class="c-date">${dash(it.startDate)}</td><td class="c-date">${dash(it.endDate)}</td>`
+    : "";
+
+  const delayCell = hasDelay
+    ? `<td class="c-delay has-delay"><span class="delay-flag" aria-hidden="true">!</span>${escape(it.gap)}</td>`
+    : `<td class="c-delay"><span class="muted">-</span></td>`;
+
   return `
     <tr class="${isStar ? "is-star" : ""}">
       <td class="c-task">${taskCell}</td>
       <td class="c-purpose">${dash(it.goal)}</td>
-      <td class="c-date">${dash(it.startDate)}</td>
-      <td class="c-date">${dash(it.endDate)}</td>
+      ${dateCells}
       <td class="c-prog">
-        <div class="vbar ${cls}"><div class="vfill" style="height:${Math.max(0, Math.min(100, pct))}%;"></div></div>
-        <div class="vpct">${pct}%</div>
+        <div class="hbar ${cls}"><div class="hfill" style="width:${Math.max(0, Math.min(100, pct))}%;"></div></div>
+        <div class="hpct ${cls}">${pct}%</div>
       </td>
       <td class="c-notes">${dash(it.fact)}</td>
-      <td class="c-delay">${dash(it.gap)}</td>
+      ${delayCell}
       <td class="c-plan">${planHtml}</td>
     </tr>
   `;

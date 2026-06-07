@@ -35,6 +35,7 @@
 
   --prog-go:    #3B82F6;
   --prog-done:  #10B981;
+  --prog-low:   #EF4444;
   --prog-delay: #F59E0B;
   --prog-track: #E5E8EF;
 
@@ -244,12 +245,33 @@ a { color: inherit; text-decoration: none; }
 .star-mark { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: var(--star-main); color: #fff; font-size: 10px; line-height: 1; margin-right: 5px; vertical-align: middle; }
 .key-badge { display: inline-block; margin-left: 5px; padding: 1px 7px; font-size: 10px; font-weight: 700; border-radius: 999px; background: #FCE9B0; color: var(--star-deep); vertical-align: middle; }
 
-.vbar { display: inline-block; position: relative; width: 9px; height: 38px; background: var(--prog-track); border-radius: 5px; overflow: hidden; vertical-align: middle; }
-.vfill { position: absolute; left: 0; bottom: 0; width: 100%; border-radius: 5px; transition: height .3s ease; }
-.vbar.p-go   .vfill { background: var(--prog-go); }
-.vbar.p-done .vfill { background: var(--prog-done); }
-.vbar.p-delay .vfill { background: var(--prog-delay); }
-.vpct { margin-top: 5px; font-size: 11.5px; font-weight: 700; color: var(--text-strong); text-align: center; }
+/* 진척율 — 가로 막대 + 굵은 % (v5.1) */
+.hbar { width: 100%; max-width: 78px; height: 7px; margin: 0 auto; background: var(--prog-track); border-radius: 999px; overflow: hidden; }
+.hfill { height: 100%; border-radius: 999px; transition: width .3s ease; }
+.hbar.p-go   .hfill { background: var(--prog-go); }
+.hbar.p-done .hfill { background: var(--prog-done); }
+.hbar.p-low  .hfill { background: var(--prog-low); }
+.hpct { margin-top: 5px; font-size: 12.5px; font-weight: 800; text-align: center; color: var(--text-strong); }
+.hpct.p-go   { color: var(--brand-deep); }
+.hpct.p-done { color: var(--status-good); }
+.hpct.p-low  { color: var(--prog-low); }
+
+/* 지연사유 강조 — 색이 아닌 플래그 + 옅은 배경 */
+.work-table .c-delay.has-delay { background: #FFF7ED; color: #B45309; }
+.delay-flag { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; margin-right: 5px; border-radius: 50%; background: var(--prog-delay); color: #fff; font-size: 10px; font-weight: 800; line-height: 1; vertical-align: middle; }
+
+/* 보기 필터 툴바 */
+.team-toolbar { display: flex; align-items: center; gap: 6px; margin: 0 0 14px; flex-wrap: wrap; }
+.team-toolbar .tf-label { font-size: 12px; color: var(--text-faded); margin-right: 4px; }
+.tf-btn { padding: 6px 13px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-soft); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px; cursor: pointer; transition: all .12s ease; }
+.tf-btn:hover { color: var(--text-strong); border-color: var(--brand-soft); }
+.tf-btn.active { color: #fff; background: var(--brand); border-color: var(--brand); }
+
+/* 팀 카드 접기/펼치기 */
+.team-card-head { cursor: pointer; user-select: none; }
+.collapse-caret { margin-left: auto; align-self: center; color: var(--text-faded); font-size: 12px; transition: transform .2s ease; }
+.team-block.is-collapsed .collapse-caret { transform: rotate(-90deg); }
+.team-block.is-collapsed .work-table-wrap { display: none; }
 
 /* 의사결정 */
 .decisions-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 26px; box-shadow: var(--shadow-card); }
