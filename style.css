@@ -1,0 +1,848 @@
+/* ============================================================
+ * 디지털서비스본부 주간 대시보드 — v5.0 스타일
+ * HR 주간보고 화면 톤에 맞춘 밝은 코퍼레이트 디자인
+ *  - 흰 카드 / 옅은 회색 표 헤더 / 차분한 블루 액센트
+ *  - 팀별 주요 실적: 표(테이블) + 세로 진척 막대
+ *  - 빈 섹션 자동 숨김 (app.js 가 처리)
+ * ============================================================ */
+
+:root {
+  --bg:           #F4F6F9;      /* 페이지 배경 — 옅은 회색 */
+  --bg-soft:      #FAFBFC;
+  --surface:      #FFFFFF;
+  --surface-alt:  #F8FAFC;
+  --border:       #E5E8EF;
+  --border-strong:#D6DBE5;
+
+  --text-main:    #374151;
+  --text-strong:  #1F2A37;
+  --text-soft:    #6B7280;
+  --text-faded:   #9CA3AF;
+
+  --brand:        #2F6BD3;      /* 코퍼레이트 블루 */
+  --brand-deep:   #1E4FB0;
+  --brand-soft:   #9DBDF0;
+  --brand-pale:   #EAF1FC;
+  --topbar:       #FFFFFF;      /* 상단바 — 화이트 */
+
+  /* 팀 액센트 (차분하게) */
+  --team-marketing:  #6366F1;       /* 디지털마케팅팀 - 인디고 */
+  --team-operations: #0EA5A4;       /* 서비스운영팀  - 청록 */
+  --team-planning:   #3B82F6;       /* 서비스기획팀  - 블루 */
+  --team-netimes:    #F59E0B;       /* NE Times팀    - 앰버 */
+  --team-ax:         #EC4899;       /* AX팀         - 로즈 */
+
+  --status-good:  #16A34A;
+  --status-warn:  #D97706;
+  --status-bad:   #DC2626;
+  --status-info:  #2563EB;
+  --status-new:   #7C3AED;
+
+  /* 진척 막대 색 */
+  --prog-go:    #3B82F6;   /* 진행중 - 블루 */
+  --prog-done:  #10B981;   /* 100%   - 그린 */
+  --prog-delay: #F59E0B;   /* 지연사유 있음 - 오렌지 */
+  --prog-track: #E5E8EF;
+
+  /* ★ 핵심 항목 액센트 */
+  --star-deep:  #B45309;
+  --star-main:  #F59E0B;
+  --star-soft:  #FCD9A0;
+  --star-bg:    #FFFBEF;
+
+  --radius:    14px;
+  --radius-sm: 10px;
+  --shadow-card:   0 1px 3px rgba(31, 42, 55, 0.06), 0 1px 2px rgba(31, 42, 55, 0.04);
+  --shadow-strong: 0 6px 20px rgba(31, 42, 55, 0.10);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 132px;
+}
+
+body {
+  margin: 0;
+  font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  color: var(--text-main);
+  background: var(--bg);
+  word-break: keep-all;
+  line-break: strict;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ============================================================
+ * 상단 고정 바 (화이트)
+ * ============================================================ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--topbar);
+  color: var(--text-strong);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(31, 42, 55, 0.02);
+}
+
+.topbar-row {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 14px 28px;
+  gap: 18px;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-strong);
+}
+.brand-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 4px rgba(47, 107, 211, 0.14);
+}
+.brand-title { letter-spacing: -0.02em; }
+
+.week-filter {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+}
+.week-filter label {
+  font-size: 12px;
+  color: var(--text-soft);
+  letter-spacing: 0.02em;
+}
+.week-filter select {
+  appearance: none;
+  background: var(--surface);
+  color: var(--text-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 7px 30px 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%236B7280' d='M5 6L0 0h10z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.week-filter select:hover { border-color: var(--brand-soft); }
+.week-filter select option { color: #1F2A37; background: #fff; }
+
+.refresh-btn {
+  background: var(--brand-pale);
+  color: var(--brand-deep);
+  border: 1px solid var(--border-strong);
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.refresh-btn:hover { background: #DCE8FA; }
+
+/* 탭 네비 */
+.tabs-row {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+.tabs-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 0 28px;
+  overflow-x: auto;
+}
+.tabs-inner a {
+  position: relative;
+  padding: 13px 14px 11px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-soft);
+  white-space: nowrap;
+  transition: color .15s ease;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1px;
+}
+.tabs-inner a:hover { color: var(--text-strong); }
+.tabs-inner a.active {
+  color: var(--brand-deep);
+  font-weight: 700;
+  border-bottom-color: var(--brand);
+}
+
+/* ============================================================
+ * 메인 레이아웃
+ * ============================================================ */
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.section-title {
+  display: flex; align-items: center; gap: 9px;
+  margin: 30px 0 14px;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-strong);
+  letter-spacing: -0.025em;
+}
+.section-title::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+  flex-shrink: 0;
+}
+.section-title:first-of-type { margin-top: 0; }
+
+/* ============================================================
+ * Cover (클린 헤더 카드)
+ * ============================================================ */
+.cover-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--brand);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+.cover-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+}
+.cover-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--brand);
+  flex-shrink: 0;
+}
+.cover-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.03em;
+  color: var(--text-strong);
+}
+.cover-meta {
+  display: flex; flex-wrap: wrap; gap: 8px 22px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.cover-meta span b { font-weight: 600; color: var(--text-main); margin-right: 5px; }
+
+/* 핵심 메시지 */
+.signals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 26px;
+}
+.signal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 18px 16px;
+  box-shadow: var(--shadow-card);
+}
+.signal .num {
+  display: inline-block;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--brand-pale);
+  color: var(--brand-deep);
+  font-size: 12px; font-weight: 700;
+  text-align: center; line-height: 24px;
+  margin-bottom: 8px;
+}
+.signal .stitle {
+  font-size: 14.5px; font-weight: 700; color: var(--text-strong);
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+.signal .sbody {
+  font-size: 12.5px; line-height: 1.55; color: var(--text-soft);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* ============================================================
+ * KPI (본부 핵심 과제)
+ * ============================================================ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 26px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--brand);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+.kpi-card.k-good   { border-top-color: var(--status-good); }
+.kpi-card.k-warn   { border-top-color: var(--status-warn); }
+.kpi-card.k-bad    { border-top-color: var(--status-bad);  }
+.kpi-card.k-info   { border-top-color: var(--status-info); }
+.kpi-card.k-new    { border-top-color: var(--status-new);  }
+
+.kpi-name {
+  font-size: 12.5px; color: var(--text-soft);
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+.kpi-value {
+  font-size: 27px; font-weight: 800; color: var(--text-strong);
+  margin: 0 0 6px;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.kpi-value .unit {
+  font-size: 14px; font-weight: 600; color: var(--text-soft);
+  margin-left: 2px;
+}
+.kpi-desc {
+  font-size: 12px; color: var(--text-soft);
+  line-height: 1.5;
+  margin: 0 0 10px;
+  min-height: 18px;
+}
+.kpi-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.kpi-badge.b-good { background: #DCFCE7; color: var(--status-good); }
+.kpi-badge.b-warn { background: #FEF3C7; color: #92670D; }
+.kpi-badge.b-bad  { background: #FEE2E2; color: var(--status-bad); }
+.kpi-badge.b-info { background: #DBEAFE; color: var(--status-info); }
+.kpi-badge.b-new  { background: #EDE9FE; color: var(--status-new); }
+
+/* ============================================================
+ * 월별 매출현황
+ * ============================================================ */
+.sales-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 26px;
+  box-shadow: var(--shadow-card);
+}
+.sales-block h3 {
+  margin: 0 0 12px;
+  font-size: 15px; font-weight: 700;
+  color: var(--text-strong);
+}
+.sales-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+.sales-table th {
+  background: #F3F5F8;
+  color: var(--text-strong);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 12.5px;
+}
+.sales-table th.num, .sales-table td.num { text-align: right; }
+.sales-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+.sales-table tr.normal td:first-child { color: var(--brand-deep); font-weight: 500; }
+.sales-table tr.subtotal td {
+  background: #EDF1F7;
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.sales-table tr.total td {
+  background: #2F3B4C;
+  color: #fff;
+  font-weight: 700;
+  border-bottom: none;
+}
+.sales-table tr.total td:first-child { color: #fff; }
+.sales-table tr.total .info-icon {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  border-color: rgba(255,255,255,0.3);
+}
+.sales-table td.up   { color: #16A34A; font-weight: 600; }
+.sales-table td.down { color: #DC2626; font-weight: 600; }
+
+.sales-note {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--text-soft);
+  background: var(--brand-pale);
+  border-left: 3px solid var(--brand-soft);
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+/* ============================================================
+ * CEO 지침 응답 표
+ * ============================================================ */
+.ceo-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 26px;
+  box-shadow: var(--shadow-card);
+  overflow-x: auto;
+}
+.ceo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ceo-table th {
+  background: #F3F5F8;
+  color: var(--text-strong);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+.ceo-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  color: var(--text-main);
+  line-height: 1.55;
+}
+.ceo-table tr:last-child td { border-bottom: none; }
+.ceo-table td.when {
+  white-space: nowrap;
+  color: var(--brand-deep);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ============================================================
+ * 팀별 주요 실적 — HR 표 양식
+ * ============================================================ */
+.team-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+/* 팀 카드 헤더 — 화이트 + 컬러 점 + 팀명 + 회색 설명 */
+.team-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 15px 20px 13px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+.team-card-head .team-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  align-self: center;
+  flex-shrink: 0;
+  background: var(--brand);
+}
+.team-card-head .team-name {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--text-strong);
+  letter-spacing: -0.02em;
+}
+.team-card-head .team-sub {
+  font-size: 12.5px;
+  color: var(--text-faded);
+  font-weight: 500;
+}
+/* 팀별 점 색상 */
+.team-card-head.t-marketing  .team-dot { background: var(--team-marketing); }
+.team-card-head.t-operations .team-dot { background: var(--team-operations); }
+.team-card-head.t-planning   .team-dot { background: var(--team-planning); }
+.team-card-head.t-netimes    .team-dot { background: var(--team-netimes); }
+.team-card-head.t-ax         .team-dot { background: var(--team-ax); }
+
+/* 업무 표 */
+.work-table-wrap { overflow-x: auto; }
+.work-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  font-size: 12.8px;
+  table-layout: fixed;
+}
+.work-table thead th {
+  background: #F3F5F8;
+  color: var(--text-soft);
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+.work-table tbody td {
+  padding: 13px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.work-table tbody tr:last-child td { border-bottom: none; }
+.work-table tbody tr:hover td { background: #FAFBFD; }
+
+/* 셀 정렬 */
+.work-table .c-task    { font-weight: 700; color: var(--text-strong); }
+.work-table .c-purpose { color: var(--text-soft); }
+.work-table .c-date    { text-align: center; color: var(--text-soft); white-space: nowrap; }
+.work-table .c-prog    { text-align: center; }
+.work-table .c-notes   { color: var(--text-main); }
+.work-table .c-delay   { color: var(--text-main); }
+.work-table .c-plan    { color: var(--text-main); }
+.work-table .muted     { color: var(--text-faded); }
+
+.work-table .task-name { display: inline; }
+.work-table .sub-action {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+/* 파트 구분 행 */
+.work-table tr.part-row td {
+  background: var(--surface-alt);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand-deep);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.work-table tr.part-row.t-marketing  td { color: #4F46E5; }
+.work-table tr.part-row.t-operations td { color: #0F766E; }
+.work-table tr.part-row.t-planning   td { color: #2563EB; }
+.work-table tr.part-row.t-netimes    td { color: #B45309; }
+.work-table tr.part-row.t-ax         td { color: #BE185D; }
+
+/* ★ 핵심 업무 행 강조 */
+.work-table tr.is-star td { background: var(--star-bg); }
+.work-table tr.is-star:hover td { background: #FFF6E0; }
+.work-table tr.is-star .c-task { box-shadow: inset 3px 0 0 var(--star-main); }
+.star-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: var(--star-main);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.key-badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: #FCE9B0;
+  color: var(--star-deep);
+  vertical-align: middle;
+}
+
+/* 세로 진척 막대 */
+.vbar {
+  display: inline-block;
+  position: relative;
+  width: 9px;
+  height: 38px;
+  background: var(--prog-track);
+  border-radius: 5px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.vfill {
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 100%;
+  border-radius: 5px;
+  transition: height .3s ease;
+}
+.vbar.p-go   .vfill { background: var(--prog-go); }
+.vbar.p-done .vfill { background: var(--prog-done); }
+.vbar.p-delay .vfill { background: var(--prog-delay); }
+.vpct {
+  margin-top: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-strong);
+  text-align: center;
+}
+
+/* ============================================================
+ * 의사결정 요청
+ * ============================================================ */
+.decisions-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 26px;
+  box-shadow: var(--shadow-card);
+}
+.decision-row {
+  display: grid;
+  grid-template-columns: 56px 1.4fr 2fr 1fr 96px;
+  gap: 14px;
+  align-items: start;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.decision-row:first-of-type { border-top: none; }
+.decision-header {
+  background: #F3F5F8;
+  color: var(--text-soft);
+  border-top: none;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+}
+.decision-header > div { padding: 0 8px; }
+.priority-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 999px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+.priority-chip.p0 { background: #FECACA; color: #B91C1C; }
+.priority-chip.p1 { background: #FED7AA; color: #B45309; }
+.priority-chip.p2 { background: #BFDBFE; color: #1D4ED8; }
+
+.decision-title { font-weight: 700; color: var(--text-strong); }
+.decision-body  { color: var(--text-soft); }
+.decision-action{ color: var(--brand-deep); font-weight: 500; }
+.decision-due   { font-weight: 600; color: var(--text-main); text-align: right; white-space: nowrap; }
+
+/* ============================================================
+ * 다운로드 버튼 섹션 헤더
+ * ============================================================ */
+.section-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 30px 0 14px;
+}
+.section-head-row .section-title {
+  margin: 0;
+}
+
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-deep);
+  background: var(--brand-pale);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s ease, transform .05s ease, box-shadow .15s ease;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.download-btn:hover {
+  background: #DCE8FA;
+  box-shadow: 0 2px 6px rgba(31, 42, 55, 0.08);
+}
+.download-btn:active { transform: translateY(1px); }
+.download-btn svg { flex-shrink: 0; }
+
+/* ============================================================
+ * 월별 매출 — 비고 ⓘ 아이콘 + 툴팁 + 마감 예상매출 합계
+ * ============================================================ */
+.sales-table .info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--brand-pale);
+  color: var(--brand-deep);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+  cursor: help;
+  position: relative;
+  vertical-align: middle;
+  border: 1px solid var(--border-strong);
+}
+.sales-table .info-icon:hover,
+.sales-table .info-icon:focus {
+  background: var(--brand-soft);
+  color: #fff;
+  outline: none;
+}
+.sales-table .info-icon::after {
+  content: attr(data-tip);
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1F2A37;
+  color: #fff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding: 8px 12px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  min-width: 200px;
+  max-width: 320px;
+  text-align: left;
+  line-height: 1.5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+  z-index: 100;
+  box-shadow: 0 4px 14px rgba(20, 12, 56, 0.25);
+}
+.sales-table .info-icon::before {
+  content: "";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: #1F2A37;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+  z-index: 100;
+}
+.sales-table .info-icon:hover::after,
+.sales-table .info-icon:focus::after,
+.sales-table .info-icon:hover::before,
+.sales-table .info-icon:focus::before {
+  opacity: 1;
+}
+
+.sales-table tr.forecast-total td {
+  background: #EAF1FC;
+  color: var(--brand-deep);
+  font-weight: 700;
+  border-top: 2px solid var(--brand-soft);
+  border-bottom: none;
+}
+.sales-table tr.forecast-total td:first-child { color: var(--brand-deep); font-weight: 700; }
+.sales-table tr.forecast-total .info-icon {
+  background: #fff;
+  color: var(--brand-deep);
+  border-color: var(--brand-soft);
+}
+
+/* ============================================================
+ * 핵심 메시지 가변 폭
+ * ============================================================ */
+.signals.count-1 { grid-template-columns: 1fr; }
+.signals.count-2 { grid-template-columns: 1fr 1fr; }
+.signals.count-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ============================================================
+ * 반응형
+ * ============================================================ */
+@media (max-width: 960px) {
+  .signals, .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .signals.count-2, .signals.count-3 { grid-template-columns: 1fr 1fr; }
+  .decision-row { grid-template-columns: 1fr; }
+  .decision-due { text-align: left; }
+  .topbar-row { flex-wrap: wrap; gap: 12px; }
+  .week-filter { margin-left: 0; }
+}
+@media (max-width: 600px) {
+  .signals, .kpi-grid { grid-template-columns: 1fr; }
+  .signals.count-2, .signals.count-3 { grid-template-columns: 1fr; }
+  .page { padding: 18px; }
+  .section-head-row { flex-wrap: wrap; }
+  .download-btn { font-size: 12px; padding: 6px 10px; }
+  .team-card-head { flex-wrap: wrap; gap: 4px 10px; }
+}
+
+/* 로딩/에러 */
+.loading {
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+.error {
+  padding: 24px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius);
+  color: #991B1B;
+  font-size: 13px;
+  margin: 20px 0;
+}
+
+/* 외부 위젯 / 자동 추가 컨트롤 숨김 */
+[data-vercel-toolbar],
+[id^="vercel-"],
+vercel-live-feedback,
+.__vercel-live-feedback { display: none !important; }
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+
+.topbar > *:not(.topbar-row):not(.tabs-row) { display: none !important; }
