@@ -210,7 +210,7 @@ function renderMessages(messages) {
     <div class="signal">
       <span class="num">${escape(m.idx)}</span>
       <div class="stitle">${escape(m.title)}</div>
-      <p class="sbody">${escape(m.body)}</p>
+      <p class="sbody">${escapeML(m.body)}</p>
     </div>
   `).join("");
 }
@@ -233,7 +233,7 @@ function renderKpis(kpis) {
       <div class="kpi-card ${sm.card}">
         <p class="kpi-name">${escape(k.name)}</p>
         <p class="kpi-value">${escape(k.value)}<span class="unit">${escape(k.unit || "")}</span></p>
-        <p class="kpi-desc">${escape(k.desc)}</p>
+        <p class="kpi-desc">${escapeML(k.desc)}</p>
         ${k.status ? `<span class="kpi-badge ${sm.badge}">${escape(k.status)}</span>` : ""}
       </div>
     `;
@@ -310,7 +310,7 @@ function renderMonthlySales(ms) {
         </tr></thead>
         <tbody>${bodyRows}</tbody>
       </table>
-      ${ms.note ? `<div class="sales-note">${escape(ms.note)}</div>` : ""}
+      ${ms.note ? `<div class="sales-note">${escapeML(ms.note)}</div>` : ""}
     </div>
   `;
 }
@@ -329,9 +329,9 @@ function renderCeo(items) {
       <tbody>
         ${items.map(c => `
           <tr>
-            <td><b>${escape(c.directive)}</b></td>
-            <td>${escape(c.gap)}</td>
-            <td>${escape(c.answer)}</td>
+            <td><b>${escapeML(c.directive)}</b></td>
+            <td>${escapeML(c.gap)}</td>
+            <td>${escapeML(c.answer)}</td>
             <td class="when">${escape(c.when)}</td>
           </tr>
         `).join("")}
@@ -464,11 +464,11 @@ function renderItemRow(it, hasDates) {
   const cls = progClass(pct);
   const hasDelay = !!(it.gap && String(it.gap).trim());
 
-  const dash = s => (s && String(s).trim()) ? escape(s) : '<span class="muted">-</span>';
+  const dash = s => (s && String(s).trim()) ? escapeML(s) : '<span class="muted">-</span>';
 
-  let planHtml = (it.plan && it.plan.trim()) ? escape(it.plan) : "";
+  let planHtml = (it.plan && it.plan.trim()) ? escapeML(it.plan) : "";
   if (it.action && it.action.trim()) {
-    planHtml += (planHtml ? '<div class="sub-action">↳ ' : '<span class="sub-action">') + escape(it.action) + (planHtml ? '</div>' : '</span>');
+    planHtml += (planHtml ? '<div class="sub-action">↳ ' : '<span class="sub-action">') + escapeML(it.action) + (planHtml ? '</div>' : '</span>');
   }
   if (!planHtml) planHtml = '<span class="muted">-</span>';
 
@@ -483,7 +483,7 @@ function renderItemRow(it, hasDates) {
     : "";
 
   const delayCell = hasDelay
-    ? `<td class="c-delay has-delay"><span class="delay-flag" aria-hidden="true">!</span>${escape(it.gap)}</td>`
+    ? `<td class="c-delay has-delay"><span class="delay-flag" aria-hidden="true">!</span>${escapeML(it.gap)}</td>`
     : `<td class="c-delay"><span class="muted">-</span></td>`;
 
   return `
@@ -513,9 +513,9 @@ function renderDecisions(items) {
       ${items.map(d => `
         <div class="decision-row">
           <div><span class="priority-chip ${priorityClass(d.priority)}">${escape(d.priority)}</span></div>
-          <div class="decision-title">${escape(d.title)}</div>
-          <div class="decision-body">${escape(d.body)}</div>
-          <div class="decision-action">${escape(d.action)}</div>
+          <div class="decision-title">${escapeML(d.title)}</div>
+          <div class="decision-body">${escapeML(d.body)}</div>
+          <div class="decision-action">${escapeML(d.action)}</div>
           <div class="decision-due">${escape(d.deadline)}</div>
         </div>
       `).join("")}
@@ -598,6 +598,11 @@ function escape(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/* 셀 안 줄바꿈(\n)을 화면에서도 줄바꿈으로 표시 — HTML 이스케이프 후 <br> 변환 */
+function escapeML(s) {
+  return escape(s).replace(/\r\n|\r|\n/g, "<br>");
 }
 
 /* ===== 기존 폼(금주/차주) 엑셀 다운로드 ===== */
@@ -760,6 +765,7 @@ function fmtCur(idx, it) {
   if (action) lines.push(` -실행 : ${action}`);
   return lines.join("\n");
 }
+
 
 function fmtNext(idx, it) {
   const title = _displayTitle(it);
