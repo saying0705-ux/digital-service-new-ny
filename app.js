@@ -1,10 +1,22 @@
 /**
- * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.0
- *  - 팀별 주요 실적: HR 표 형식 (업무·목적·시작일·종료일·진척율·진행사항·지연사유·예정사항)
- *  - 진척율: 세로 막대 (100% 그린 / 지연사유 있음 오렌지 / 그 외 블루)
- *  - 시작일/종료일은 시트 J/K열에서 가져옴 (비면 '-')
+ * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.1 (연동 점검 + 무오류 하드닝)
+ *  - 팀별 주요 실적: HR 표 형식 (업무·목적·기간·진척율·진행사항·지연사유·예정사항)
+ *  - 진척율: 가로 막대 (100% 그린 / 50~99% 블루 / 50%미만 레드, 지연은 별도 플래그)
+ *  - 시작일/종료일은 '기간' 한 열로 통합 표시 (둘 다 비면 '-')
+ *  - 본문(진행/예정 등) 안의 http(s)·www·이메일은 자동으로 클릭 링크 처리
+ *
+ *  ※ 데이터 연동 한 곳: 바로 아래 API_URL.
+ *    구글시트 → Apps Script 웹앱(/exec) → 이 파일이 fetch 합니다.
+ *    "데이터를 불러오지 못했습니다"가 뜨면 99% API_URL 문제입니다(아래 안내 참고).
  */
 
+/* ============================================================
+ *  ★ 연동 설정 — 여기 한 줄만 새 시트의 웹앱 URL로 맞추면 됩니다 ★
+ *  새 구글시트(복사본)는 자체 웹앱 URL이 없으므로, 시트의
+ *  [확장 프로그램 > Apps Script > 배포 > 새 배포 > 웹 앱]에서 발급한
+ *  https://script.google.com/macros/s/...../exec  주소를 붙여넣으세요.
+ *  (기존 스크립트를 그대로 재배포했다면 URL이 같으므로 수정 불필요)
+ * ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbzYzyEAhX2wxxHsjeZ8bmOTBpVjKKy9jvBsAqQz3SwZGY3Vs0HcK-T-e_NZ8S4dZ1-NjA/exec";
 
 const NAV_OFFSET = 140;
@@ -25,21 +37,32 @@ async function loadInitial() {
 
 async function loadData(weekKey) {
   const root = document.getElementById("app");
+  if (!root) return;
   root.innerHTML = '<div class="loading">대시보드 데이터를 불러오는 중입니다…</div>';
-  if (!API_URL || API_URL.indexOf("Apps-Script") !== -1) {
-    root.innerHTML = '<div class="error">API_URL이 설정되지 않았습니다. app.js 의 API_URL 에 Apps Script 웹앱 URL을 입력하세요.</div>';
+
+  if (!API_URL || /YOUR_|여기에|PASTE|Apps-Script/i.test(API_URL) || !/^https:\/\/script\.google\.com\/macros\/s\//.test(API_URL)) {
+    root.innerHTML = '<div class="error">⚙️ 연동 URL이 설정되지 않았습니다.<br>app.js 상단의 <b>API_URL</b> 에 새 시트의 Apps Script 웹앱 주소(<code>…/exec</code>)를 입력하세요.</div>';
     return;
   }
+
   try {
     const qs = weekKey ? `?week=${encodeURIComponent(weekKey)}` : "";
-    const res = await fetch(`${API_URL}${qs}`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}${qs}`, { cache: "no-store", redirect: "follow" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     LAST_DATA = data;
     render(data);
   } catch (err) {
-    root.innerHTML = `<div class="error">데이터를 불러오지 못했습니다: ${err.message}</div>`;
+    root.innerHTML = `
+      <div class="error">
+        데이터를 불러오지 못했습니다: ${escape(err.message)}<br><br>
+        <b>점검 순서</b><br>
+        1) app.js의 <b>API_URL</b>이 <u>새 시트</u>의 웹앱(<code>…/exec</code>) 주소인지<br>
+        2) 그 주소를 브라우저에 직접 붙여넣으면 JSON이 보이는지<br>
+        3) Apps Script 배포 시 <b>액세스 권한: 모든 사용자</b> 였는지<br>
+        4) 시트 공유가 막혀 있지 않은지 (보고용은 '뷰어' 권장)
+      </div>`;
     console.error(err);
   }
 }
@@ -47,15 +70,19 @@ async function loadData(weekKey) {
 function bindTopBar() {
   const select = document.getElementById("week-select");
   const refresh = document.getElementById("refresh-btn");
-  select.addEventListener("change", () => {
-    const v = select.value;
-    if (v) loadData(v);
-  });
-  refresh.addEventListener("click", () => loadData(select.value || ""));
+  if (select) {
+    select.addEventListener("change", () => {
+      const v = select.value;
+      if (v) loadData(v);
+    });
+  }
+  if (refresh) refresh.addEventListener("click", () => loadData((select && select.value) || ""));
 }
 
 function fillWeekDropdown(weeks, currentKey) {
   const select = document.getElementById("week-select");
+  if (!select) return;
+  if (!weeks || !weeks.length) return;          // 데이터에 주차 목록이 없으면 기존 옵션 유지
   select.innerHTML = "";
   weeks.forEach((w, i) => {
     const opt = document.createElement("option");
@@ -83,9 +110,12 @@ const TEAM_META = {
 };
 
 function render(d) {
+  d = d || {};
   fillWeekDropdown(d.weeks || [], d.week);
   const root = document.getElementById("app");
+  if (!root) return;
 
+  const cover       = d.cover || {};
   const messages    = d.messages || [];
   const kpis        = d.kpis || [];
   const sales       = d.monthlySales || { title:"", rows: [], note: "", forecastTotal: null };
@@ -109,13 +139,13 @@ function render(d) {
     <section class="cover-card">
       <div class="cover-head">
         <span class="cover-dot" aria-hidden="true"></span>
-        <h1 class="cover-title">${escape(d.cover["보고서 제목"] || "디지털서비스본부 주간 보고")}</h1>
+        <h1 class="cover-title">${escape(cover["보고서 제목"] || "디지털서비스본부 주간 보고")}</h1>
       </div>
       <div class="cover-meta">
-        <span><b>보고 기간</b> ${escape(d.cover["보고 기간"] || "")}</span>
-        <span><b>보고일</b> ${escape(d.cover["보고일"] || "")}</span>
-        <span><b>작성 본부</b> ${escape(d.cover["작성 본부"] || "")}</span>
-        <span><b>주차</b> ${escape(d.weekLabel || d.week)}</span>
+        <span><b>보고 기간</b> ${escape(cover["보고 기간"] || "")}</span>
+        <span><b>보고일</b> ${escape(cover["보고일"] || "")}</span>
+        <span><b>작성 본부</b> ${escape(cover["작성 본부"] || "")}</span>
+        <span><b>주차</b> ${escape(d.weekLabel || d.week || "")}</span>
       </div>
     </section>
   `);
@@ -169,12 +199,16 @@ function render(d) {
 
   root.innerHTML = parts.join("");
 
-  if (hasMessages)  renderMessages(messages);
-  if (hasKpis)      renderKpis(kpis);
-  if (hasSales)     renderMonthlySales(sales);
-  if (hasCeo)       renderCeo(ceo);
-  if (hasTeams)     renderTeams(teams);
-  if (hasDecisions) renderDecisions(decisions);
+  try {
+    if (hasMessages)  renderMessages(messages);
+    if (hasKpis)      renderKpis(kpis);
+    if (hasSales)     renderMonthlySales(sales);
+    if (hasCeo)       renderCeo(ceo);
+    if (hasTeams)     renderTeams(teams);
+    if (hasDecisions) renderDecisions(decisions);
+  } catch (e) {
+    console.error("렌더 중 오류:", e);
+  }
 
   const dlBtn = document.getElementById("download-form-btn");
   if (dlBtn) {
@@ -187,6 +221,7 @@ function render(d) {
   }
 
   bindTeamToolbar();
+  linkify(root);   // 본문 URL/이메일 → 클릭 링크
 
   setupNavScroll({
     overview: hasMessages,
@@ -245,10 +280,10 @@ function renderMonthlySales(ms) {
   if (!el) return;
   const rows = ms.rows || [];
   if (!rows.length) { el.innerHTML = ""; return; }
-  const fmt2 = v => (v === null || v === undefined) ? "-" : Number(v).toFixed(2);
-  const fmtPct = v => (v === null || v === undefined) ? "-" : `${(Number(v) * 100).toFixed(1)}%`;
+  const fmt2 = v => (v === null || v === undefined || v === "") ? "-" : Number(v).toFixed(2);
+  const fmtPct = v => (v === null || v === undefined || v === "") ? "-" : `${(Number(v) * 100).toFixed(1)}%`;
   const pctCls = v => {
-    if (v === null || v === undefined) return "";
+    if (v === null || v === undefined || v === "") return "";
     const pct = Number(v) * 100;
     if (pct >= 100) return "up";
     if (pct < 50)   return "down";
@@ -340,7 +375,7 @@ function renderCeo(items) {
   `;
 }
 
-/* ===== 팀별 주요 실적 — HR 표 양식 (v5.1 최적화) ===== */
+/* ===== 팀별 주요 실적 — HR 표 양식 (v5.1, 기간 1열 통합) ===== */
 function isStarItem(it) {
   const t = String(it.title || "");
   return it.isStar === true || /^\s*\[★\]\s*/.test(t) || /^\s*★\s*/.test(t);
@@ -366,7 +401,7 @@ function renderTeams(teams) {
 
   el.innerHTML = TEAM_ORDER.map(k => {
     const t = teams[k];
-    if (!t || !t.items.length) return "";
+    if (!t || !t.items || !t.items.length) return "";
 
     // 필터 적용 (핵심만 / 지연만)
     let items = t.items.slice();
@@ -375,13 +410,12 @@ function renderTeams(teams) {
     if (!items.length) return "";
 
     const meta = TEAM_META[k];
-    // 날짜 열 자동 숨김: 이 팀에 시작일/종료일이 하나도 없으면 두 열 제거
-    const hasDates = items.some(it => (it.startDate && it.startDate.trim()) || (it.endDate && it.endDate.trim()));
-    const colCount = hasDates ? 8 : 6;
+    // 날짜 열 자동 숨김: 이 팀에 시작일/종료일이 하나도 없으면 '기간' 열 제거
+    const hasDates = items.some(it => (it.startDate && String(it.startDate).trim()) || (it.endDate && String(it.endDate).trim()));
+    const colCount = hasDates ? 7 : 6;
 
     const groups = groupByPart(items);
     const bodyRows = groups.map(g => {
-      // ★핵심 항목을 각 파트 맨 위로 정렬
       const sorted = g.items.slice().sort((a, b) => (isStarItem(b) ? 1 : 0) - (isStarItem(a) ? 1 : 0));
       const partHeader = g.part
         ? `<tr class="part-row ${meta.cls}"><td colspan="${colCount}">${escape(g.part)}</td></tr>`
@@ -389,9 +423,9 @@ function renderTeams(teams) {
       return partHeader + sorted.map(it => renderItemRow(it, hasDates)).join("");
     }).join("");
 
-    const dateHeads = hasDates ? `<th class="c-date">시작일</th><th class="c-date">종료일</th>` : "";
+    const dateHead = hasDates ? `<th class="c-date">기간</th>` : "";
     const colgroup = hasDates
-      ? `<col style="width:15%"/><col style="width:15%"/><col style="width:7%"/><col style="width:7%"/><col style="width:10%"/><col style="width:16%"/><col style="width:14%"/><col style="width:16%"/>`
+      ? `<col style="width:16%"/><col style="width:15%"/><col style="width:9%"/><col style="width:8%"/><col style="width:18%"/><col style="width:14%"/><col style="width:20%"/>`
       : `<col style="width:17%"/><col style="width:18%"/><col style="width:11%"/><col style="width:18%"/><col style="width:16%"/><col style="width:20%"/>`;
 
     return `
@@ -409,7 +443,7 @@ function renderTeams(teams) {
               <tr>
                 <th>업무</th>
                 <th>목적</th>
-                ${dateHeads}
+                ${dateHead}
                 <th class="c-prog">진척율</th>
                 <th>진행사항</th>
                 <th>지연사유</th>
@@ -431,6 +465,8 @@ function renderTeams(teams) {
   el.querySelectorAll(".team-card-head").forEach(h => {
     h.onclick = () => h.closest(".team-block").classList.toggle("is-collapsed");
   });
+
+  linkify(el);   // 재렌더(필터) 후에도 링크 유지
 }
 
 function groupByPart(items) {
@@ -443,16 +479,26 @@ function groupByPart(items) {
       groups.push(g);
       map.set(key, g);
     }
-    map.get(key).items.push(it);   // map 값은 {part, items} 객체 → items 배열에 push
+    map.get(key).items.push(it);
   });
   return groups;
 }
 
-// 진척율 색: 100% 그린 / 50~99% 블루 / 50% 미만 레드 (지연은 색이 아닌 별도 플래그로 표시)
+// 진척율 색: 100% 그린 / 50~99% 블루 / 50% 미만 레드
 function progClass(pct) {
   if (pct >= 100) return "p-done";
   if (pct >= 50)  return "p-go";
   return "p-low";
+}
+
+// 시작일/종료일 → '기간' 한 셀 (둘 다 비면 '-')
+function rangeCell(it) {
+  const sd = (it.startDate == null ? "" : String(it.startDate)).trim();
+  const ed = (it.endDate   == null ? "" : String(it.endDate)).trim();
+  if (!sd && !ed) return `<td class="c-date"><span class="muted">-</span></td>`;
+  const s = sd ? escape(sd) : '<span class="muted">-</span>';
+  const e = ed ? escape(ed) : '<span class="muted">-</span>';
+  return `<td class="c-date"><span class="d-s">${s}</span><span class="d-e">~ ${e}</span></td>`;
 }
 
 function renderItemRow(it, hasDates) {
@@ -460,14 +506,15 @@ function renderItemRow(it, hasDates) {
   const isStar = isStarItem(it);
   const titleClean = title.replace(/^\s*\[★\]\s*/, "").replace(/^\s*★\s*/, "").trim();
 
-  const pct = (typeof it.progress === "number") ? it.progress : 0;
+  const pct = (typeof it.progress === "number") ? it.progress : (parseFloat(it.progress) || 0);
   const cls = progClass(pct);
+  const zeroAttr = pct === 0 ? ' data-zero="1"' : "";
   const hasDelay = !!(it.gap && String(it.gap).trim());
 
   const dash = s => (s && String(s).trim()) ? escapeML(s) : '<span class="muted">-</span>';
 
-  let planHtml = (it.plan && it.plan.trim()) ? escapeML(it.plan) : "";
-  if (it.action && it.action.trim()) {
+  let planHtml = (it.plan && String(it.plan).trim()) ? escapeML(it.plan) : "";
+  if (it.action && String(it.action).trim()) {
     planHtml += (planHtml ? '<div class="sub-action">↳ ' : '<span class="sub-action">') + escapeML(it.action) + (planHtml ? '</div>' : '</span>');
   }
   if (!planHtml) planHtml = '<span class="muted">-</span>';
@@ -478,9 +525,7 @@ function renderItemRow(it, hasDates) {
     ${isStar ? '<span class="key-badge">핵심</span>' : ""}
   `;
 
-  const dateCells = hasDates
-    ? `<td class="c-date">${dash(it.startDate)}</td><td class="c-date">${dash(it.endDate)}</td>`
-    : "";
+  const dateCell = hasDates ? rangeCell(it) : "";
 
   const delayCell = hasDelay
     ? `<td class="c-delay has-delay"><span class="delay-flag" aria-hidden="true">!</span>${escapeML(it.gap)}</td>`
@@ -490,8 +535,8 @@ function renderItemRow(it, hasDates) {
     <tr class="${isStar ? "is-star" : ""}">
       <td class="c-task">${taskCell}</td>
       <td class="c-purpose">${dash(it.goal)}</td>
-      ${dateCells}
-      <td class="c-prog">
+      ${dateCell}
+      <td class="c-prog"${zeroAttr}>
         <div class="hbar ${cls}"><div class="hfill" style="width:${Math.max(0, Math.min(100, pct))}%;"></div></div>
         <div class="hpct ${cls}">${pct}%</div>
       </td>
@@ -529,6 +574,43 @@ function priorityClass(priority) {
   if (p === "중요" || p === "P1") return "p1";
   if (p === "참고" || p === "P2") return "p2";
   return "p2";
+}
+
+/* ===== 본문 자동 링크 (http/https/www/이메일) ===== */
+function linkify(root) {
+  if (!root) return;
+  const rx = /((https?:\/\/|www\.)[^\s<>"']+)|([\w.+-]+@[\w-]+\.[\w.-]+)/g;
+  const cells = root.querySelectorAll(".c-task, .c-purpose, .c-notes, .c-delay, .c-plan, .decision-body, .decision-action, .ceo-table td, .sbody");
+  cells.forEach(cell => {
+    const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, null);
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(node => {
+      if (node.parentNode && node.parentNode.closest && node.parentNode.closest("a")) return;
+      const t = node.nodeValue;
+      rx.lastIndex = 0;
+      if (!rx.test(t)) return;
+      rx.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      while ((m = rx.exec(t))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(t.slice(last, m.index)));
+        const raw = m[0];
+        const url = raw.replace(/[.,)\]]+$/, "");
+        const a = document.createElement("a");
+        a.className = "inline-link";
+        if (m[3]) { a.href = "mailto:" + url; }
+        else { a.href = (m[2] === "www." ? "https://" : "") + url; a.target = "_blank"; a.rel = "noopener noreferrer"; }
+        a.textContent = url;
+        frag.appendChild(a);
+        if (url !== raw) frag.appendChild(document.createTextNode(raw.slice(url.length)));
+        last = m.index + raw.length;
+      }
+      if (last < t.length) frag.appendChild(document.createTextNode(t.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  });
 }
 
 function setupNavScroll(visibleMap) {
@@ -765,7 +847,6 @@ function fmtCur(idx, it) {
   if (action) lines.push(` -실행 : ${action}`);
   return lines.join("\n");
 }
-
 
 function fmtNext(idx, it) {
   const title = _displayTitle(it);

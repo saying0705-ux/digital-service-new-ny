@@ -337,3 +337,19 @@ a { color: inherit; text-decoration: none; }
 [data-vercel-toolbar], [id^="vercel-"], vercel-live-feedback, .__vercel-live-feedback { display: none !important; }
 input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .topbar > *:not(.topbar-row):not(.tabs-row) { display: none !important; }
+
+/* ============================================================
+ * v5.1 추가 — 기간 1열 통합 / 본문 클릭 링크 / 0% 강조
+ * ============================================================ */
+
+/* 기간(시작~종료) 한 셀 안에서 위아래로 컴팩트 표시 */
+.work-table .c-date .d-s { display: block; font-weight: 600; color: var(--text-main); }
+.work-table .c-date .d-e { display: block; font-size: 11px; color: var(--text-faded); margin-top: 1px; }
+
+/* 진척율 0% 빨강 강조 */
+.work-table .c-prog[data-zero="1"] .hfill { background: var(--prog-low); }
+.work-table .c-prog[data-zero="1"] .hpct  { color: var(--prog-low); }
+
+/* 본문 자동 링크 */
+.inline-link { color: var(--brand-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; cursor: pointer; }
+.inline-link:hover { color: var(--brand); }

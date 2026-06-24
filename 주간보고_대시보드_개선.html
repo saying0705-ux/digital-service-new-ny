@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>디지털서비스본부 주간 대시보드</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css" />
+<style>
+  :root{
+    --bg:#f3f5f9; --panel:#ffffff; --ink:#1b2333; --sub:#69728a;
+    --line:#e6e9f0; --line2:#eef1f6;
+    --brand:#2f5fe0; --brand-deep:#1f47b8; --brand-soft:#eef3ff;
+    --good:#15a05a; --warn:#e8930c; --bad:#e0382d; --mid:#0f9fd1;
+    --key:#e8930c; --key-soft:#fff6e8;
+    --shadow:0 1px 2px rgba(20,30,55,.05), 0 10px 30px rgba(20,30,55,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Pretendard Variable','Pretendard','Malgun Gothic',system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+
+  /* ===== Topbar ===== */
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(20,30,55,.03)}
+  .topbar-row{max-width:1160px;margin:0 auto;padding:13px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .brand-mark{display:flex;align-items:center;gap:10px}
+  .brand-dot{width:11px;height:11px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+  .brand-title{font-size:15.5px;font-weight:800;letter-spacing:-.3px}
+  .week-filter{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub)}
+  .week-filter select{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  .ctrl-btn{font:inherit;font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;transition:.15s}
+  .ctrl-btn:hover{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+  .ctrl-btn.solid{background:var(--brand);border-color:var(--brand);color:#fff}
+  .ctrl-btn.solid:hover{background:var(--brand-deep)}
+
+  .tabs-row{border-top:1px solid var(--line2);background:#fbfcfe}
+  .tabs-inner{max-width:1160px;margin:0 auto;padding:0 16px;display:flex;gap:2px;overflow-x:auto}
+  .tabs-inner a{font-size:13px;font-weight:600;color:var(--sub);padding:11px 13px;white-space:nowrap;border-bottom:2px solid transparent;text-decoration:none;transition:.15s}
+  .tabs-inner a:hover{color:var(--brand);border-color:var(--brand)}
+
+  /* ===== Page ===== */
+  .page{max-width:1160px;margin:0 auto;padding:24px 22px 60px}
+  .section-label{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800;color:var(--brand);
+    text-transform:uppercase;letter-spacing:.6px;margin:30px 2px 12px}
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* ===== KPI summary ===== */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .kpi .l{font-size:12px;color:var(--sub);font-weight:600;margin-bottom:7px}
+  .kpi .v{font-size:27px;font-weight:800;letter-spacing:-.8px}
+  .kpi .v small{font-size:13px;font-weight:600;color:var(--sub)}
+  .kpi .bar{height:6px;border-radius:6px;background:var(--line2);margin-top:11px;overflow:hidden}
+  .kpi .bar i{display:block;height:100%;border-radius:6px}
+
+  /* ===== Team accordion ===== */
+  details.team{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+  details.team[open]{border-color:#d6def1}
+  .team>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;padding:16px 20px;user-select:none}
+  .team>summary::-webkit-details-marker{display:none}
+  .chev{flex:0 0 auto;width:22px;height:22px;border-radius:7px;background:var(--brand-soft);color:var(--brand);
+    display:flex;align-items:center;justify-content:center;font-size:12px;transition:transform .2s}
+  details[open]>summary .chev{transform:rotate(90deg)}
+  .team-name{font-size:16px;font-weight:800;letter-spacing:-.3px}
+  .team-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+  .chip{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:#f1f3f8;color:var(--sub)}
+  .chip.key{background:var(--key-soft);color:var(--key)}
+  .team-prog{display:flex;align-items:center;gap:8px;min-width:148px}
+  .team-prog .track{flex:1;height:8px;border-radius:8px;background:var(--line2);overflow:hidden}
+  .team-prog .track i{display:block;height:100%;border-radius:8px}
+  .team-prog b{font-size:13px;font-weight:800;width:38px;text-align:right}
+
+  .team-body{padding:4px 16px 14px;border-top:1px solid var(--line2)}
+
+  /* ===== Task accordion ===== */
+  details.task{border:1px solid var(--line);border-radius:12px;margin-top:12px;overflow:hidden;background:#fff}
+  details.task[open]{box-shadow:0 4px 16px rgba(20,30,55,.05)}
+  .task>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:13px;padding:13px 15px;user-select:none}
+  .task>summary::-webkit-details-marker{display:none}
+  .task.keyline{border-left:3px solid var(--key)}
+  .t-chev{flex:0 0 auto;width:18px;height:18px;color:var(--sub);display:flex;align-items:center;justify-content:center;font-size:11px;transition:transform .2s}
+  details[open]>summary .t-chev{transform:rotate(90deg)}
+  .t-title{font-size:14.5px;font-weight:700;letter-spacing:-.2px}
+  .t-badge{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:5px;background:var(--key);color:#fff;margin-left:2px}
+  .t-right{display:flex;align-items:center;gap:14px;margin-left:auto}
+  .t-date{font-size:12px;color:var(--sub);white-space:nowrap}
+
+  /* mini gauge */
+  .gauge{position:relative;width:46px;height:46px;flex:0 0 46px}
+  .gauge svg{transform:rotate(-90deg)}
+  .gauge .gv{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;letter-spacing:-.5px}
+
+  .task-body{padding:2px 16px 16px 46px;border-top:1px solid var(--line2)}
+  .purpose{font-size:12.5px;color:var(--sub);margin:11px 0 4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:8px;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+  .gcol{padding:13px 15px}
+  .gcol+.gcol{border-left:1px solid var(--line2)}
+  .gcol h4{font-size:11px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+  .gcol h4 .ic{width:15px;height:15px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;color:#fff}
+  ul.items{list-style:none;display:flex;flex-direction:column;gap:6px}
+  ul.items li{font-size:13px;padding-left:15px;position:relative}
+  ul.items li::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--brand)}
+  ul.items.next li::before{background:var(--mid)}
+  ul.items li.sub{padding-left:26px;color:var(--sub);font-size:12px}
+  ul.items li.sub::before{content:"\21B3";background:none;left:12px;top:0;color:var(--sub);font-size:11px}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:5px;margin-left:3px;background:#e8f6ee;color:var(--good)}
+
+  .fix{background:#fff5f4;border:1px dashed #f0b6b1;border-radius:9px;padding:8px 11px;font-size:12px;color:#9c241c;margin-top:11px}
+  .fix b{color:var(--bad)}
+  .strike{color:var(--sub);text-decoration:line-through;margin-right:5px}
+  .nv{color:var(--good);font-weight:800}
+
+  .ph{font-size:12.5px;color:var(--sub);padding:14px 4px;text-align:center;border:1px dashed var(--line);border-radius:10px;margin-top:12px;background:#fafbfd}
+
+  /* decisions */
+  .decision{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;border:1px solid var(--line);border-radius:12px;margin-top:10px;background:#fff}
+  .decision .num{flex:0 0 24px;height:24px;border-radius:7px;background:var(--bad);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .decision .dtext{font-size:13.5px}
+  .decision .dtext em{font-style:normal;color:var(--sub);font-size:12px;display:block;margin-top:3px}
+
+  footer{text-align:center;color:var(--sub);font-size:12px;margin:34px 0 10px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--sub);margin:14px 2px 0;align-items:center}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+  @media(max-width:760px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .grid2{grid-template-columns:1fr}
+    .gcol+.gcol{border-left:none;border-top:1px solid var(--line2)}
+    .team-meta{width:100%;justify-content:flex-start;margin-left:36px}
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===== Topbar (기존 톤 유지) ===== -->
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand-mark">
+        <span class="brand-dot"></span>
+        <span class="brand-title">NE능률 · 디지털서비스본부 주간보고</span>
+      </div>
+      <div class="week-filter">
+        <label for="week-select">주차</label>
+        <select id="week-select" aria-label="주차 선택">
+          <option>2026-06 4주차 (06.22~06.28)</option>
+          <option>2026-06 3주차 (06.15~06.21)</option>
+        </select>
+        <button class="ctrl-btn" id="expand-all" type="button">전체 펼치기</button>
+        <button class="ctrl-btn solid" id="collapse-all" type="button">전체 접기</button>
+      </div>
+    </div>
+    <nav class="tabs-row">
+      <div class="tabs-inner">
+        <a href="#overview">개요</a>
+        <a href="#commerce">커머스파트</a>
+        <a href="#marketing">디지털마케팅</a>
+        <a href="#operations">서비스운영</a>
+        <a href="#planning">서비스기획</a>
+        <a href="#netimes">NE Times</a>
+        <a href="#ax">AX</a>
+        <a href="#decisions">의사결정 요청</a>
+      </div>
+    </nav>
+  </div>
+
+  <main class="page">
+
+    <!-- ===== Overview ===== -->
+    <div id="overview" class="section-label">개요 · Executive Summary</div>
+    <section class="kpis">
+      <div class="kpi"><div class="l">전체 추진 업무</div><div class="v">3 <small>건</small></div>
+        <div class="bar"><i style="width:100%;background:var(--brand)"></i></div></div>
+      <div class="kpi"><div class="l">핵심 업무</div><div class="v" style="color:var(--key)">2 <small>건</small></div>
+        <div class="bar"><i style="width:66%;background:var(--key)"></i></div></div>
+      <div class="kpi"><div class="l">평균 진척율 <small>(수정 반영)</small></div><div class="v" style="color:var(--brand)">~52<small>%</small></div>
+        <div class="bar"><i style="width:52%;background:var(--brand)"></i></div></div>
+      <div class="kpi"><div class="l">의사결정 대기</div><div class="v" style="color:var(--bad)">2 <small>건</small></div>
+        <div class="bar"><i style="width:40%;background:var(--bad)"></i></div></div>
+    </section>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--bad)"></span>0~25% 초기</span>
+      <span><span class="dot" style="background:var(--warn)"></span>26~60% 진행</span>
+      <span><span class="dot" style="background:var(--good)"></span>61~100% 마무리</span>
+      <span style="margin-left:auto">팀 헤더 클릭 → 펼치기/접기 · <b style="color:var(--bad)">점선 박스</b>=수정 반영</span>
+    </div>
+
+    <!-- ===== 커머스파트 ===== -->
+    <div id="commerce" class="section-label">팀별 추진 현황</div>
+
+    <details class="team" open>
+      <summary>
+        <span class="chev">&#9656;</span>
+        <span class="team-name">커머스파트</span>
+        <span class="team-meta">
+          <span class="chip">업무 3</span>
+          <span class="chip key">핵심 2</span>
+          <span class="team-prog"><span class="track"><i style="width:52%;background:var(--warn)"></i></span><b>52%</b></span>
+        </span>
+      </summary>
+      <div class="team-body">
+
+        <!-- Task 1 -->
+        <details class="task keyline">
+          <summary>
+            <span class="t-chev">&#9656;</span>
+            <span class="t-title">주니어랩 운영관리</span><span class="t-badge">핵심</span>
+            <span class="t-right">
+              <span class="t-date">05.07 ~ 07.31</span>
+              <span class="gauge">
+                <svg width="46" height="46" viewBox="0 0 46 46">
+                  <circle cx="23" cy="23" r="19" fill="none" stroke="#eef0f5" stroke-width="6"/>
+                  <circle cx="23" cy="23" r="19" fill="none" stroke="var(--warn)" stroke-width="6" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="65.7"/>
+                </svg>
+                <span class="gv" style="color:var(--warn)">45%</span>
+              </span>
+            </span>
+          </summary>
+          <div class="task-body">
+            <div class="purpose">목적 · 전체 23개 지사 해지 → 본사 직접관리 전환</div>
+            <div class="grid2">
+              <div class="gcol">
+                <h4><span class="ic" style="background:var(--good)">&#10003;</span>진행사항</h4>
+                <ul class="items">
+                  <li>채널마케팅본부 업무 이관<span class="pill">완료</span></li>
+                  <li>채권 회수 6월말 완료 (0.13억)<span class="pill">완료</span></li>
+                  <li>지사 해지 7월말 통보<span class="pill">완료</span><br><span class="sub" style="display:block;padding-left:0;margin-top:2px">9~10월 순차 종료 예정</span></li>
+                </ul>
+              </div>
+              <div class="gcol">
+                <h4><span class="ic" style="background:var(--mid)">&#8594;</span>예정사항</h4>
+                <ul class="items next">
+                  <li>전체 교실 본사 직접대응 업무 정리</li>
+                  <li>교실 전환 작업 계획 1차 수립</li>
+                </ul>
+              </div>
+            </div>
+            <div class="fix"><b>수정 ★</b> 진척율 <span class="strike">0%</span><span class="nv">45%</span> — 완료 항목 3건인데 0%로 표기되어 실제 진행도 반영. <b>실제 수치 확인 요망</b></div>
+          </div>
+        </details>
+
+        <!-- Task 2 -->
+        <details class="task keyline">
+          <summary>
+            <span class="t-chev">&#9656;</span>
+            <span class="t-title">플랫폼 고객유입전략 실행</span><span class="t-badge">핵심</span>
+            <span class="t-right">
+              <span class="t-date">06.22 ~ <span class="strike">06.27</span> <span class="nv">07.10</span></span>
+              <span class="gauge">
+                <svg width="46" height="46" viewBox="0 0 46 46">
+                  <circle cx="23" cy="23" r="19" fill="none" stroke="#eef0f5" stroke-width="6"/>
+                  <circle cx="23" cy="23" r="19" fill="none" stroke="var(--warn)" stroke-width="6" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="83.6"/>
+                </svg>
+                <span class="gv" style="color:var(--warn)">30%</span>
+              </span>
+            </span>
+          </summary>
+          <div class="task-body">
+            <div class="purpose">목적 · 플랫폼 보유 고객 기반 자사몰 유입 확대 및 전환 체계 구축</div>
+            <div class="grid2">
+              <div class="gcol">
+                <h4><span class="ic" style="background:var(--good)">&#10003;</span>진행사항</h4>
+                <ul class="items">
+                  <li>6월 하위 세그먼트 리스트 기반 Push 운영 기획·제안서 작성</li>
+                  <li>업체별 노출 가능 범위 1차 제안 회신 요청 (~6/22)</li>
+                  <li>플랫폼 업체 고객 유입 세미나 기획안 작성</li>
+                  <li>NELT 6회 신청 고객 대상 추가 유입 Push 운영 (더클래스·폼에이스)</li>
+                </ul>
+              </div>
+              <div class="gcol">
+                <h4><span class="ic" style="background:var(--mid)">&#8594;</span>예정사항</h4>
+                <ul class="items next">
+                  <li>원아워·클래스카드·청취닷컴 대상 플랫폼별 제안서 검토 완료</li>
+                  <li>차주 플랫폼 업체 미팅 (원아워·클래스카드)</li>
+                  <li class="sub">6월 말 플랫폼 제휴 운영안 보고 및 품의 진행</li>
+                </ul>
+              </div>
+            </div>
+            <div class="fix"><b>수정 ★</b> 종료일 <span class="strike">06.27</span><span class="nv">07.10</span> — 예정사항(차주 미팅·6월 말 보고)이 종료일 이후라 연장. <b>정확한 일자 확인 요망</b></div>
+          </div>
+        </details>
+
+        <!-- Task 3 -->
+        <details class="task">
+          <summary>
+            <span class="t-chev">&#9656;</span>
+            <span class="t-title">주니어랩 D2C 고객 전환</span>
+            <span class="t-right">
+              <span class="t-date">05.07 ~ 07.31</span>
+              <span class="gauge">
+                <svg width="46" height="46" viewBox="0 0 46 46">
+                  <circle cx="23" cy="23" r="19" fill="none" stroke="#eef0f5" stroke-width="6"/>
+                  <circle cx="23" cy="23" r="19" fill="none" stroke="var(--bad)" stroke-width="6" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="83.6"/>
+                </svg>
+                <span class="gv" style="color:var(--bad)">30%</span>
+              </span>
+            </span>
+          </summary>
+          <div class="task-body">
+            <div class="purpose">목적 · 학원(교실) 전환율 15% → 목표 30% 확대</div>
+            <div class="grid2">
+              <div class="gcol">
+                <h4><span class="ic" style="background:var(--good)">&#10003;</span>진행사항</h4>
+                <ul class="items">
+                  <li>391명 중 <b>83명 전환 (21%)</b></li>
+                  <li class="sub">기존 15% 대비 +6%p / 목표 30%까지 9%p 남음</li>
+                </ul>
+              </div>
+              <div class="gcol">
+                <h4><span class="ic" style="background:var(--mid)">&#8594;</span>예정사항</h4>
+                <ul class="items next">
+                  <li>고객 전환 확대 세미나 운영 준비 — 7/9 (송도캠퍼스 / 100명)</li>
+                  <li class="sub">LMS 사이트 세미나 배너 오픈 및 신청 진행</li>
+                </ul>
+              </div>
+            </div>
+            <div class="fix"><b>수정</b> 게이지 기준을 <span class="strike">진척율 25%</span> → <span class="nv">목표 30% 기준 전환율</span>로 통일, "목표 15% 초과" → <span class="nv">"목표 30% 기준 21% 달성"</span> (목적 30%와 본문 15% 기준 상이 → 통일 권장)</div>
+          </div>
+        </details>
+
+      </div>
+    </details>
+
+    <!-- ===== 빈 팀 템플릿 (엑셀 데이터 입력 영역) ===== -->
+    <details class="team" id="marketing">
+      <summary><span class="chev">&#9656;</span><span class="team-name">디지털마케팅</span>
+        <span class="team-meta"><span class="chip">업무 0</span><span class="team-prog"><span class="track"><i style="width:0%;background:var(--brand)"></i></span><b>—</b></span></span>
+      </summary>
+      <div class="team-body"><div class="ph">엑셀 데이터 입력 영역 · 위 커머스파트 카드 구조를 그대로 복제해 채워주세요</div></div>
+    </details>
+
+    <details class="team" id="operations">
+      <summary><span class="chev">&#9656;</span><span class="team-name">서비스운영</span>
+        <span class="team-meta"><span class="chip">업무 0</span><span class="team-prog"><span class="track"><i style="width:0%;background:var(--brand)"></i></span><b>—</b></span></span>
+      </summary>
+      <div class="team-body"><div class="ph">엑셀 데이터 입력 영역</div></div>
+    </details>
+
+    <details class="team" id="planning">
+      <summary><span class="chev">&#9656;</span><span class="team-name">서비스기획</span>
+        <span class="team-meta"><span class="chip">업무 0</span><span class="team-prog"><span class="track"><i style="width:0%;background:var(--brand)"></i></span><b>—</b></span></span>
+      </summary>
+      <div class="team-body"><div class="ph">엑셀 데이터 입력 영역</div></div>
+    </details>
+
+    <details class="team" id="netimes">
+      <summary><span class="chev">&#9656;</span><span class="team-name">NE Times</span>
+        <span class="team-meta"><span class="chip">업무 0</span><span class="team-prog"><span class="track"><i style="width:0%;background:var(--brand)"></i></span><b>—</b></span></span>
+      </summary>
+      <div class="team-body"><div class="ph">엑셀 데이터 입력 영역</div></div>
+    </details>
+
+    <details class="team" id="ax">
+      <summary><span class="chev">&#9656;</span><span class="team-name">AX</span>
+        <span class="team-meta"><span class="chip">업무 0</span><span class="team-prog"><span class="track"><i style="width:0%;background:var(--brand)"></i></span><b>—</b></span></span>
+      </summary>
+      <div class="team-body"><div class="ph">엑셀 데이터 입력 영역</div></div>
+    </details>
+
+    <!-- ===== 의사결정 요청 ===== -->
+    <div id="decisions" class="section-label">의사결정 요청</div>
+    <div class="decision"><span class="num">1</span><div class="dtext">주니어랩 운영관리 <b>진척율 기준 확정</b> — 완료 3건 반영 시 실제 % 결정 필요<em>요청: 커머스파트 · 기한 06.27</em></div></div>
+    <div class="decision"><span class="num">2</span><div class="dtext">플랫폼 고객유입 <b>종료일/마일스톤 재설정</b> — 06.27 이후 일정 정합성 확보<em>요청: 커머스파트 · 기한 06.27</em></div></div>
+
+    <footer>NE능률 · 디지털서비스본부 주간보고 · 기준일 2026.06.24 · ★ 표시는 실제 수치 확인 후 확정</footer>
+  </main>
+
+<script>
+  const all = () => document.querySelectorAll('details.team, details.task');
+  document.getElementById('expand-all').addEventListener('click', () => all().forEach(d => d.open = true));
+  document.getElementById('collapse-all').addEventListener('click', () => all().forEach(d => d.open = false));
+  // 팀을 펼치면 안에 닫혀있던 업무도 함께 펼침(한눈에 보기)
+  document.querySelectorAll('details.team').forEach(team => {
+    team.addEventListener('toggle', () => {
+      if (team.open) team.querySelectorAll('details.task').forEach(t => t.open = true);
+    });
+  });
+</script>
+</body>
+</html>
