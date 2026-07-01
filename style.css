@@ -1,5 +1,6 @@
 /* ============================================================
- * 디지털서비스본부 주간 대시보드 — v5.0 스타일 (HR 클린 톤)
+ * 디지털서비스본부 주간 대시보드 — v5.2 스타일 (HR 클린 톤)
+ *  - v5.2: 팀별 실적 '기간·진척율' 통합 타임라인 셀 추가
  * ============================================================ */
 
 :root {
@@ -216,7 +217,7 @@ a { color: inherit; text-decoration: none; }
 .team-card-head.t-ax         .team-dot { background: var(--team-ax); }
 
 .work-table-wrap { overflow-x: auto; }
-.work-table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: 12.8px; table-layout: fixed; }
+.work-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 12.8px; table-layout: fixed; }
 .work-table thead th { background: #F3F5F8; color: var(--text-soft); font-weight: 600; font-size: 12px; text-align: center; padding: 11px 10px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
 .work-table tbody td { padding: 13px 12px; border-bottom: 1px solid var(--border); color: var(--text-main); vertical-align: top; line-height: 1.5; }
 .work-table tbody tr:last-child td { border-bottom: none; }
@@ -245,7 +246,7 @@ a { color: inherit; text-decoration: none; }
 .star-mark { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: var(--star-main); color: #fff; font-size: 10px; line-height: 1; margin-right: 5px; vertical-align: middle; }
 .key-badge { display: inline-block; margin-left: 5px; padding: 1px 7px; font-size: 10px; font-weight: 700; border-radius: 999px; background: #FCE9B0; color: var(--star-deep); vertical-align: middle; }
 
-/* 진척율 — 가로 막대 + 굵은 % (v5.1) */
+/* (구) 진척율 단독 막대 — 하위호환용, 현재는 통합 타임라인 사용 */
 .hbar { width: 100%; max-width: 78px; height: 7px; margin: 0 auto; background: var(--prog-track); border-radius: 999px; overflow: hidden; }
 .hfill { height: 100%; border-radius: 999px; transition: width .3s ease; }
 .hbar.p-go   .hfill { background: var(--prog-go); }
@@ -339,17 +340,34 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 .topbar > *:not(.topbar-row):not(.tabs-row) { display: none !important; }
 
 /* ============================================================
- * v5.1 추가 — 기간 1열 통합 / 본문 클릭 링크 / 0% 강조
+ * v5.1 — 본문 클릭 링크
  * ============================================================ */
-
-/* 기간(시작~종료) 한 셀 안에서 위아래로 컴팩트 표시 */
-.work-table .c-date .d-s { display: block; font-weight: 600; color: var(--text-main); }
-.work-table .c-date .d-e { display: block; font-size: 11px; color: var(--text-faded); margin-top: 1px; }
-
-/* 진척율 0% 빨강 강조 */
-.work-table .c-prog[data-zero="1"] .hfill { background: var(--prog-low); }
-.work-table .c-prog[data-zero="1"] .hpct  { color: var(--prog-low); }
-
-/* 본문 자동 링크 */
 .inline-link { color: var(--brand-deep); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; cursor: pointer; }
 .inline-link:hover { color: var(--brand); }
+
+/* ============================================================
+ * v5.2 — 기간 · 진척율 통합 타임라인 셀
+ *  고정폭 열(≈188px). 시작일 ─ 진척막대 ─ 종료일 을 한 줄에.
+ *  (막대 왼쪽=시작일, 오른쪽=종료일, 채움=진척률 — 동일 축)
+ * ============================================================ */
+.work-table .c-timeline-h { text-align: center; }
+.work-table .c-timeline { text-align: center; vertical-align: middle; white-space: nowrap; }
+
+.tl-row { display: flex; align-items: center; gap: 7px; }
+.tl-date { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-soft); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tl-date .muted { color: var(--text-faded); }
+
+.tl-track { flex: 1 1 auto; min-width: 42px; height: 8px; background: var(--prog-track); border-radius: 999px; overflow: hidden; }
+.tl-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
+.tl-pct { margin-top: 5px; text-align: center; font-size: 12.5px; font-weight: 800; color: var(--text-strong); }
+
+/* 진척 색: 100% 그린 / 50~99% 블루 / 50%미만 레드 */
+.c-timeline.p-done .tl-fill { background: var(--prog-done); }
+.c-timeline.p-done .tl-pct  { color: var(--status-good); }
+.c-timeline.p-go   .tl-fill { background: var(--prog-go); }
+.c-timeline.p-go   .tl-pct  { color: var(--brand-deep); }
+.c-timeline.p-low  .tl-fill { background: var(--prog-low); }
+.c-timeline.p-low  .tl-pct  { color: var(--prog-low); }
+/* 0% 는 레드로 강조 */
+.c-timeline[data-zero="1"] .tl-fill { background: var(--prog-low); }
+.c-timeline[data-zero="1"] .tl-pct  { color: var(--prog-low); }

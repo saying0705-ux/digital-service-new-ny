@@ -1,8 +1,11 @@
 /**
- * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.1 (연동 점검 + 무오류 하드닝)
- *  - 팀별 주요 실적: HR 표 형식 (업무·목적·기간·진척율·진행사항·지연사유·예정사항)
- *  - 진척율: 가로 막대 (100% 그린 / 50~99% 블루 / 50%미만 레드, 지연은 별도 플래그)
- *  - 시작일/종료일은 '기간' 한 열로 통합 표시 (둘 다 비면 '-')
+ * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.2 (기간·진척율 통합 타임라인)
+ *  - 팀별 주요 실적: HR 표 형식 (업무·목적·[기간·진척율]·금주업무·지연사유·차주업무)
+ *  - v5.2 변경: '기간' 열과 '진척율' 열을 하나의 고정폭 타임라인 셀로 통합
+ *      · 시작일 ─ 진척막대 ─ 종료일 을 한 줄에 배치 (막대 왼쪽=시작일, 오른쪽=종료일)
+ *      · 막대 채움 = 진척률 (동일 축: 진척 시작=기간 시작일, 진척 끝=기간 종료일)
+ *      · 타임라인 영역은 고정폭(약 188px) → 업무 제목이 길어져도 레이아웃 유지
+ *      · 진척률: 100% 그린 / 50~99% 블루 / 50%미만·0% 레드
  *  - 본문(진행/예정 등) 안의 http(s)·www·이메일은 자동으로 클릭 링크 처리
  *
  *  ※ 데이터 연동 한 곳: 바로 아래 API_URL.
@@ -375,7 +378,7 @@ function renderCeo(items) {
   `;
 }
 
-/* ===== 팀별 주요 실적 — HR 표 양식 (v5.1, 기간 1열 통합) ===== */
+/* ===== 팀별 주요 실적 — HR 표 양식 (v5.2, 기간·진척율 통합 타임라인) ===== */
 function isStarItem(it) {
   const t = String(it.title || "");
   return it.isStar === true || /^\s*\[★\]\s*/.test(t) || /^\s*★\s*/.test(t);
@@ -410,9 +413,9 @@ function renderTeams(teams) {
     if (!items.length) return "";
 
     const meta = TEAM_META[k];
-    // 날짜 열 자동 숨김: 이 팀에 시작일/종료일이 하나도 없으면 '기간' 열 제거
+    // 이 팀에 시작일/종료일이 하나라도 있으면 타임라인에 날짜 라벨 표시
     const hasDates = items.some(it => (it.startDate && String(it.startDate).trim()) || (it.endDate && String(it.endDate).trim()));
-    const colCount = hasDates ? 7 : 6;
+    const colCount = 6;   // 업무·목적·[기간·진척율]·금주업무·지연사유·차주업무
 
     const groups = groupByPart(items);
     const bodyRows = groups.map(g => {
@@ -423,10 +426,9 @@ function renderTeams(teams) {
       return partHeader + sorted.map(it => renderItemRow(it, hasDates)).join("");
     }).join("");
 
-    const dateHead = hasDates ? `<th class="c-date">기간</th>` : "";
-    const colgroup = hasDates
-      ? `<col style="width:16%"/><col style="width:15%"/><col style="width:9%"/><col style="width:8%"/><col style="width:18%"/><col style="width:14%"/><col style="width:20%"/>`
-      : `<col style="width:17%"/><col style="width:18%"/><col style="width:11%"/><col style="width:18%"/><col style="width:16%"/><col style="width:20%"/>`;
+    // 기간·진척율 열은 고정폭(188px), 나머지는 % — 제목이 길어져도 타임라인 폭 유지
+    const timelineHead = hasDates ? "기간 · 진척율" : "진척율";
+    const colgroup = `<col style="width:17%"/><col style="width:16%"/><col style="width:188px"/><col style="width:18%"/><col style="width:14%"/><col style="width:19%"/>`;
 
     return `
       <section class="team-block" id="${meta.id}">
@@ -443,11 +445,10 @@ function renderTeams(teams) {
               <tr>
                 <th>업무</th>
                 <th>목적</th>
-                ${dateHead}
-                <th class="c-prog">진척율</th>
-                <th>진행사항</th>
+                <th class="c-timeline-h">${timelineHead}</th>
+                <th>금주업무</th>
                 <th>지연사유</th>
-                <th>예정사항</th>
+                <th>차주업무</th>
               </tr>
             </thead>
             <tbody>${bodyRows}</tbody>
@@ -491,14 +492,36 @@ function progClass(pct) {
   return "p-low";
 }
 
-// 시작일/종료일 → '기간' 한 셀 (둘 다 비면 '-')
-function rangeCell(it) {
+/* 기간 + 진척율 통합 셀 (v5.2)
+ *  - 시작일 ─ 진척막대 ─ 종료일 을 한 줄에 (막대 왼쪽=시작일, 오른쪽=종료일)
+ *  - 막대 채움 = 진척률 (동일 축)
+ *  - 날짜가 팀에 하나도 없으면(hasDates=false) 막대 + % 만 표시
+ */
+function timelineCell(it, hasDates) {
+  const raw = (typeof it.progress === "number") ? it.progress : (parseFloat(it.progress) || 0);
+  const pct = Math.max(0, Math.min(100, Math.round(raw)));
+  const cls = progClass(pct);
+  const zeroAttr = pct === 0 ? ' data-zero="1"' : "";
+
   const sd = (it.startDate == null ? "" : String(it.startDate)).trim();
   const ed = (it.endDate   == null ? "" : String(it.endDate)).trim();
-  if (!sd && !ed) return `<td class="c-date"><span class="muted">-</span></td>`;
-  const s = sd ? escape(sd) : '<span class="muted">-</span>';
-  const e = ed ? escape(ed) : '<span class="muted">-</span>';
-  return `<td class="c-date"><span class="d-s">${s}</span><span class="d-e">~ ${e}</span></td>`;
+
+  let startLbl = "", endLbl = "";
+  if (hasDates) {
+    startLbl = `<span class="tl-date tl-s">${sd ? escape(sd) : '<span class="muted">-</span>'}</span>`;
+    endLbl   = `<span class="tl-date tl-e">${ed ? escape(ed) : '<span class="muted">-</span>'}</span>`;
+  }
+
+  return `
+    <td class="c-timeline ${cls}"${zeroAttr}>
+      <div class="tl-row">
+        ${startLbl}
+        <div class="tl-track" role="img" aria-label="기간 대비 진척률 ${pct}퍼센트"><div class="tl-fill" style="width:${pct}%;"></div></div>
+        ${endLbl}
+      </div>
+      <div class="tl-pct">${pct}%</div>
+    </td>
+  `;
 }
 
 function renderItemRow(it, hasDates) {
@@ -506,11 +529,7 @@ function renderItemRow(it, hasDates) {
   const isStar = isStarItem(it);
   const titleClean = title.replace(/^\s*\[★\]\s*/, "").replace(/^\s*★\s*/, "").trim();
 
-  const pct = (typeof it.progress === "number") ? it.progress : (parseFloat(it.progress) || 0);
-  const cls = progClass(pct);
-  const zeroAttr = pct === 0 ? ' data-zero="1"' : "";
   const hasDelay = !!(it.gap && String(it.gap).trim());
-
   const dash = s => (s && String(s).trim()) ? escapeML(s) : '<span class="muted">-</span>';
 
   let planHtml = (it.plan && String(it.plan).trim()) ? escapeML(it.plan) : "";
@@ -525,8 +544,6 @@ function renderItemRow(it, hasDates) {
     ${isStar ? '<span class="key-badge">핵심</span>' : ""}
   `;
 
-  const dateCell = hasDates ? rangeCell(it) : "";
-
   const delayCell = hasDelay
     ? `<td class="c-delay has-delay"><span class="delay-flag" aria-hidden="true">!</span>${escapeML(it.gap)}</td>`
     : `<td class="c-delay"><span class="muted">-</span></td>`;
@@ -535,11 +552,7 @@ function renderItemRow(it, hasDates) {
     <tr class="${isStar ? "is-star" : ""}">
       <td class="c-task">${taskCell}</td>
       <td class="c-purpose">${dash(it.goal)}</td>
-      ${dateCell}
-      <td class="c-prog"${zeroAttr}>
-        <div class="hbar ${cls}"><div class="hfill" style="width:${Math.max(0, Math.min(100, pct))}%;"></div></div>
-        <div class="hpct ${cls}">${pct}%</div>
-      </td>
+      ${timelineCell(it, hasDates)}
       <td class="c-notes">${dash(it.fact)}</td>
       ${delayCell}
       <td class="c-plan">${planHtml}</td>
