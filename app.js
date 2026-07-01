@@ -278,11 +278,8 @@ function renderKpis(kpis) {
   }).join("");
 }
 
-function renderMonthlySales(ms) {
-  const el = document.getElementById("monthly-sales");
-  if (!el) return;
-  const rows = ms.rows || [];
-  if (!rows.length) { el.innerHTML = ""; return; }
+// 매출 표 HTML 한 개 생성 (당월/누적 공용)
+function buildSalesTable(h, rows, forecastTotal) {
   const fmt2 = v => (v === null || v === undefined || v === "") ? "-" : Number(v).toFixed(2);
   const fmtPct = v => (v === null || v === undefined || v === "") ? "-" : `${(Number(v) * 100).toFixed(1)}%`;
   const pctCls = v => {
@@ -292,20 +289,12 @@ function renderMonthlySales(ms) {
     if (pct < 50)   return "down";
     return "";
   };
-
-  function pctCell(v, remark, cls) {
-    const pctText = fmtPct(v);
+  const pctCell = (v, remark, cls) => {
     const info = remark ? `<span class="info-icon" tabindex="0" data-tip="${escape(remark)}" aria-label="비고">i</span>` : "";
-    return `<td class="num ${cls}">${pctText}${info}</td>`;
-  }
-
-  const tableTitle = ms.tableLabel || ms.title || "월별 매출현황";
-  const h = ms.headers || {
-    team: '팀', target: '1Q 목표 매출액', shipped: '총출고',
-    returns: '반품', net: '순매출액', progress: '진척율'
+    return `<td class="num ${cls}">${fmtPct(v)}${info}</td>`;
   };
 
-  let bodyRows = rows.map(r => `
+  let body = (rows || []).map(r => `
     <tr class="${r.type}">
       <td>${escape(r.label)}</td>
       <td class="num">${fmt2(r.target)}</td>
@@ -316,9 +305,9 @@ function renderMonthlySales(ms) {
     </tr>
   `).join("");
 
-  if (ms.forecastTotal) {
-    const ft = ms.forecastTotal;
-    bodyRows += `
+  if (forecastTotal) {
+    const ft = forecastTotal;
+    body += `
       <tr class="forecast-total">
         <td>${escape(ft.label || "월별 마감 예상매출 합계")}</td>
         <td class="num">${fmt2(ft.target)}</td>
@@ -330,27 +319,79 @@ function renderMonthlySales(ms) {
     `;
   }
 
+  return `
+    <table class="sales-table">
+      <colgroup>
+        <col style="width: 32%"/><col style="width: 14%"/><col style="width: 12%"/>
+        <col style="width: 12%"/><col style="width: 15%"/><col style="width: 15%"/>
+      </colgroup>
+      <thead><tr>
+        <th>${escape(h.team)}</th>
+        <th class="num">${escape(h.target)}</th>
+        <th class="num">${escape(h.shipped)}</th>
+        <th class="num">${escape(h.returns)}</th>
+        <th class="num">${escape(h.net)}</th>
+        <th class="num">${escape(h.progress)}</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+  `;
+}
+
+function renderMonthlySales(ms) {
+  const el = document.getElementById("monthly-sales");
+  if (!el) return;
+  const rows = ms.rows || [];
+  if (!rows.length) { el.innerHTML = ""; return; }
+
+  const h = ms.headers || {
+    team: '팀 / 파트', target: '목표 매출액', shipped: '총출고',
+    returns: '반품', net: '순매출액', progress: '진척율'
+  };
+  const curTitle = ms.tableLabel || ms.title || "월별 매출현황";
+  const noteHtml = ms.note ? `<div class="sales-note">${escapeML(ms.note)}</div>` : "";
+
+  // 누적 데이터(있으면) — 당월/누적 토글
+  const cum = (ms.cumulative && (ms.cumulative.rows || []).length) ? ms.cumulative : null;
+
+  if (!cum) {
+    el.innerHTML = `
+      <div class="sales-block">
+        <div class="sales-head"><h3>${escape(curTitle)}</h3></div>
+        ${buildSalesTable(h, rows, ms.forecastTotal)}
+        ${noteHtml}
+      </div>
+    `;
+    return;
+  }
+
+  const cumTitle = cum.tableLabel || cum.title || "누적 매출현황";
+  const cumH = cum.headers || h;
   el.innerHTML = `
     <div class="sales-block">
-      <h3>${escape(tableTitle)}</h3>
-      <table class="sales-table">
-        <colgroup>
-          <col style="width: 32%"/><col style="width: 14%"/><col style="width: 12%"/>
-          <col style="width: 12%"/><col style="width: 15%"/><col style="width: 15%"/>
-        </colgroup>
-        <thead><tr>
-          <th>${escape(h.team)}</th>
-          <th class="num">${escape(h.target)}</th>
-          <th class="num">${escape(h.shipped)}</th>
-          <th class="num">${escape(h.returns)}</th>
-          <th class="num">${escape(h.net)}</th>
-          <th class="num">${escape(h.progress)}</th>
-        </tr></thead>
-        <tbody>${bodyRows}</tbody>
-      </table>
-      ${ms.note ? `<div class="sales-note">${escapeML(ms.note)}</div>` : ""}
+      <div class="sales-head">
+        <h3 id="sales-h3">${escape(curTitle)}</h3>
+        <div class="sales-toggle" role="tablist" aria-label="당월/누적 전환">
+          <button type="button" class="st-btn active" data-view="current" role="tab">당월</button>
+          <button type="button" class="st-btn" data-view="cumulative" role="tab">누적</button>
+        </div>
+      </div>
+      <div class="sales-view" data-view="current">${buildSalesTable(h, rows, ms.forecastTotal)}</div>
+      <div class="sales-view" data-view="cumulative" hidden>${buildSalesTable(cumH, cum.rows, cum.forecastTotal || null)}</div>
+      ${noteHtml}
     </div>
   `;
+
+  const titles = { current: curTitle, cumulative: cumTitle };
+  const h3 = el.querySelector("#sales-h3");
+  el.querySelectorAll(".st-btn").forEach(btn => {
+    btn.onclick = () => {
+      const v = btn.dataset.view;
+      el.querySelectorAll(".st-btn").forEach(b => b.classList.toggle("active", b === btn));
+      el.querySelectorAll(".sales-view").forEach(sv => { sv.hidden = (sv.dataset.view !== v); });
+      if (h3) h3.textContent = titles[v] || curTitle;
+    };
+  });
 }
 
 function renderCeo(items) {
