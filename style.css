@@ -347,48 +347,54 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 .inline-link:hover { color: var(--brand); }
 
 /* ============================================================
- * v5.3 — 컴팩트 4컬럼: 업무 제목 아래 기간·진척율 / 이슈 호버 배지
+ * v5.4 — 저소음 정리: 색·배지·강조선 최소화로 차분하게
  * ============================================================ */
 
-/* 업무 셀: 제목 줄 + 그 아래 타임라인 블록 */
+/* 행: 촘촘하게, 은은한 구분선만 */
+.work-table tbody td { padding: 11px 12px; }
+
+/* 업무 셀: 제목 + 그 아래 타임라인 (강조선/배경 없음) */
 .work-table .c-task { font-weight: 400; }
 .work-table .c-task .task-line {
   display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
-  font-weight: 700; color: var(--text-strong); line-height: 1.4;
+  font-weight: 600; color: var(--text-strong); line-height: 1.45;
 }
-.work-table .c-task .task-name { font-weight: 700; }
+.work-table .c-task .task-name { font-weight: 600; }
 
-/* 기간 ─ 막대 ─ 종료일 ─ % : 제목 바로 아래 한 줄 */
-.tl-block { display: flex; align-items: center; gap: 8px; margin-top: 8px; max-width: 340px; white-space: nowrap; }
-.tl-block .tl-date { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-soft); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+/* 핵심(★): 작은 골드 글리프만 — 원형 배경·노란 행·좌측선 모두 제거 */
+.star-mark { display: inline; width: auto; height: auto; background: none; color: #E0A100; font-size: 13px; line-height: 1; margin: 0; }
+.work-table tr.is-star td { background: #fff; }
+.work-table tr.is-star:hover td { background: #FAFBFD; }
+.work-table tr.is-star .c-task { box-shadow: none; }
+.work-table tr.has-issue .c-task { box-shadow: none; }
+
+/* 기간·진척율 — 제목 아래 '음영 박스'로 묶어 제목과 깔끔히 분리 */
+.tl-block {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 8px; padding: 6px 10px;
+  max-width: 300px; white-space: nowrap;
+  background: #F4F6FA; border-radius: 8px;
+}
+.tl-block .tl-date { flex-shrink: 0; font-size: 11px; font-weight: 500; color: var(--text-soft); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .tl-block .tl-date .muted { color: var(--text-faded); }
-.tl-block .tl-track { flex: 1 1 auto; min-width: 54px; max-width: 160px; height: 8px; background: var(--prog-track); border-radius: 999px; overflow: hidden; }
+.tl-block .tl-track { flex: 1 1 auto; min-width: 48px; max-width: 128px; height: 6px; background: #E2E7EF; border-radius: 999px; overflow: hidden; }
 .tl-block .tl-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
-.tl-block .tl-pct { flex-shrink: 0; font-size: 12px; font-weight: 800; color: var(--text-strong); }
+.tl-block .tl-pct { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--text-main); }
 
-/* 진척 색: 100% 그린 / 50~99% 블루 / 50%미만 레드 */
-.tl-block.p-done .tl-fill { background: var(--prog-done); }
-.tl-block.p-done .tl-pct  { color: var(--status-good); }
-.tl-block.p-go   .tl-fill { background: var(--prog-go); }
-.tl-block.p-go   .tl-pct  { color: var(--brand-deep); }
-.tl-block.p-low  .tl-fill { background: var(--prog-low); }
-.tl-block.p-low  .tl-pct  { color: var(--prog-low); }
-.tl-block[data-zero="1"] .tl-fill { background: var(--prog-low); }
-.tl-block[data-zero="1"] .tl-pct  { color: var(--prog-low); }
+/* 막대 색은 채도 낮춰 은은하게 / % 숫자는 상태와 무관하게 중립색 유지 */
+.tl-block.p-done .tl-fill { background: #4CAF8A; }
+.tl-block.p-go   .tl-fill { background: #6C97E8; }
+.tl-block.p-low  .tl-fill { background: #EBB057; }
+.tl-block[data-zero="1"] .tl-fill { background: #E08B8B; }
 
-/* 이슈 배지 — 있는 항목만 제목 옆에. 호버/포커스 시 툴팁 */
+/* 이슈: 작은 앰버 '!' 아이콘 하나만. 호버/포커스 시 툴팁 */
 .issue-flag {
-  position: relative; display: inline-flex; align-items: center; gap: 4px;
-  padding: 1px 8px 1px 5px; font-size: 10.5px; font-weight: 700;
-  color: #B45309; background: #FFF3E0; border: 1px solid #FCD9A0;
-  border-radius: 999px; cursor: help; white-space: nowrap;
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #FBEACF; color: #B4770A;
+  font-size: 10px; font-weight: 800; line-height: 1; cursor: help;
 }
-.issue-flag .if-ic {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; border-radius: 50%;
-  background: var(--prog-delay); color: #fff; font-size: 9px; font-weight: 800; line-height: 1;
-}
-.issue-flag:hover, .issue-flag:focus { background: #FFE8CC; outline: none; }
+.issue-flag:hover, .issue-flag:focus { background: #F6D89A; outline: none; }
 .issue-flag::after {
   content: attr(data-tip);
   position: absolute; left: 0; top: calc(100% + 8px);
@@ -399,19 +405,15 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
   z-index: 200; box-shadow: 0 6px 20px rgba(31, 42, 55, 0.22);
 }
 .issue-flag::before {
-  content: ""; position: absolute; left: 14px; top: calc(100% + 2px);
+  content: ""; position: absolute; left: 5px; top: calc(100% + 2px);
   border: 6px solid transparent; border-bottom-color: #1F2A37;
   opacity: 0; pointer-events: none; transition: opacity .15s ease; z-index: 200;
 }
 .issue-flag:hover::after, .issue-flag:focus::after,
 .issue-flag:hover::before, .issue-flag:focus::before { opacity: 1; }
 
-/* 이슈 있는 행: 업무 셀 왼쪽에 옅은 주황 라인으로 살짝 표식 */
-.work-table tr.has-issue .c-task { box-shadow: inset 3px 0 0 var(--prog-delay); }
-.work-table tr.is-star.has-issue .c-task { box-shadow: inset 3px 0 0 var(--star-main); }
-
-/* 모바일에서만 표 가로 스크롤 허용 (툴팁 잘림 방지 위해 데스크톱은 visible) */
+/* 모바일에서만 표 가로 스크롤 허용 (데스크톱은 visible — 툴팁 잘림 방지) */
 @media (max-width: 760px) {
   .work-table-wrap { overflow-x: auto; }
-  .work-table { min-width: 640px; }
+  .work-table { min-width: 620px; }
 }

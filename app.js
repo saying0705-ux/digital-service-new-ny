@@ -437,7 +437,7 @@ function renderTeams(teams) {
             <colgroup>${colgroup}</colgroup>
             <thead>
               <tr>
-                <th class="c-task-h">업무 · 기간 · 진척율</th>
+                <th class="c-task-h">업무 (기간 · 진척율)</th>
                 <th>목적</th>
                 <th>금주업무</th>
                 <th>차주업무</th>
@@ -527,16 +527,15 @@ function renderItemRow(it, hasDates) {
   }
   if (!planHtml) planHtml = '<span class="muted">-</span>';
 
-  // 이슈사항: 있는 항목만 제목 옆 배지 + 호버 툴팁 (data-tip 은 줄바꿈 유지)
+  // 이슈사항: 있는 항목만 작은 '!' 아이콘 + 호버 툴팁 (data-tip 은 줄바꿈 유지)
   const issueFlag = hasIssue
-    ? `<span class="issue-flag" tabindex="0" role="note" aria-label="이슈사항" data-tip="${escape(it.gap)}"><span class="if-ic" aria-hidden="true">!</span>이슈</span>`
+    ? `<span class="issue-flag" tabindex="0" role="note" aria-label="이슈사항" data-tip="${escape(it.gap)}">!</span>`
     : "";
 
   const taskCell = `
     <div class="task-line">
       ${isStar ? '<span class="star-mark" aria-hidden="true">★</span>' : ""}
       <span class="task-name">${escape(titleClean)}</span>
-      ${isStar ? '<span class="key-badge">핵심</span>' : ""}
       ${issueFlag}
     </div>
     ${timelineBlock(it, hasDates)}
