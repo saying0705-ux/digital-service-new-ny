@@ -1,27 +1,25 @@
 /**
- * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.3 (컴팩트 4컬럼 + 이슈 호버)
+ * 디지털서비스본부 주간 대시보드 — 프론트엔드 v6.0 (고도화)
  *  - 팀별 주요 실적: 4컬럼 표 (업무[제목+기간·진척율] · 목적 · 금주업무 · 차주업무)
- *  - v5.3 변경:
- *      · 기간·진척율을 업무 '제목 바로 아래'로 이동 → 좌우 폭 대폭 축소(6→4컬럼)
- *      · 시작일 ─ 진척막대 ─ 종료일 ─ % 한 줄 (막대 왼쪽=시작일, 오른쪽=종료일, 채움=진척률)
- *      · '지연사유' 상시 컬럼 제거 → '이슈' 배지(있는 항목만) + 마우스오버 툴팁으로 표시
- *      · 진척률: 100% 그린 / 50~99% 블루 / 50%미만·0% 레드
- *  - 본문(진행/예정 등) 안의 http(s)·www·이메일은 자동으로 클릭 링크 처리
+ *      · 컬럼 폭 정규화: 28 / 24 / 24 / 24
+ *      · 제목 아래 기간·진척율을 '음영 박스'로 분리
+ *      · 이슈는 작은 '!' 아이콘 + 호버 툴팁 (있는 항목만)
+ *  - v6.0 고도화:
+ *      · 본부 전체 요약 스트립(총 과제·평균 진척·완료·진행중·이슈·핵심 자동 집계 + 기준 시각)
+ *      · 팀 헤더 미니 지표(평균 % · N건 · 이슈)
+ *      · 과제 키워드 검색 / 전체 펼치기·접기 / 인쇄(PDF) 버튼 + 인쇄 최적화 스타일
+ *  - 본문 안의 http(s)·www·이메일은 자동 클릭 링크 처리
  *
- *  ※ 데이터 연동 한 곳: 바로 아래 API_URL.
- *    구글시트 → Apps Script 웹앱(/exec) → 이 파일이 fetch 합니다.
- *    "데이터를 불러오지 못했습니다"가 뜨면 99% API_URL 문제입니다(아래 안내 참고).
+ *  ※ 데이터 연동 한 곳: 아래 API_URL.
  */
 
-/* ============================================================
- *  ★ 연동 설정 — 여기 한 줄만 새 시트의 웹앱 URL로 맞추면 됩니다 ★
- * ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbzYzyEAhX2wxxHsjeZ8bmOTBpVjKKy9jvBsAqQz3SwZGY3Vs0HcK-T-e_NZ8S4dZ1-NjA/exec";
 
 const NAV_OFFSET = 140;
 let navClickGuard = 0;
 let LAST_DATA = null;
 let TEAM_FILTER = "all";   // all | star | delay
+let TEAM_SEARCH = "";      // 과제 키워드 검색
 
 document.addEventListener("DOMContentLoaded", () => {
   bindTopBar();
@@ -180,12 +178,17 @@ function render(d) {
         </button>
       </div>
     `);
+    parts.push(`<div id="dept-summary" class="dept-summary"></div>`);
     parts.push(`
       <div class="team-toolbar" id="team-toolbar">
         <span class="tf-label">보기</span>
         <button type="button" class="tf-btn active" data-filter="all">전체</button>
         <button type="button" class="tf-btn" data-filter="star">핵심만</button>
         <button type="button" class="tf-btn" data-filter="delay">이슈만</button>
+        <input type="search" id="team-search" class="team-search" placeholder="과제 검색…" aria-label="과제 검색" />
+        <span class="tf-spacer"></span>
+        <button type="button" class="tf-util" id="toggle-all" title="모든 팀 펼치기/접기">펼치기/접기</button>
+        <button type="button" class="tf-util" id="print-btn" title="인쇄 또는 PDF로 저장">인쇄 / PDF</button>
       </div>
     `);
     parts.push(`<div id="teams"></div>`);
@@ -203,7 +206,7 @@ function render(d) {
     if (hasKpis)      renderKpis(kpis);
     if (hasSales)     renderMonthlySales(sales);
     if (hasCeo)       renderCeo(ceo);
-    if (hasTeams)     renderTeams(teams);
+    if (hasTeams)   { renderDeptSummary(teams); renderTeams(teams); }
     if (hasDecisions) renderDecisions(decisions);
   } catch (e) {
     console.error("렌더 중 오류:", e);
@@ -220,6 +223,7 @@ function render(d) {
   }
 
   bindTeamToolbar();
+  bindToolbarExtras();
   linkify(root);
 
   setupNavScroll({
@@ -374,10 +378,65 @@ function renderCeo(items) {
   `;
 }
 
-/* ===== 팀별 주요 실적 — 컴팩트 4컬럼 (v5.3) ===== */
+/* ===== 팀별 주요 실적 — v6.0 ===== */
 function isStarItem(it) {
   const t = String(it.title || "");
   return it.isStar === true || /^\s*\[★\]\s*/.test(t) || /^\s*★\s*/.test(t);
+}
+
+// 진척률(0~100 정수)
+function progOf(it) {
+  const raw = (typeof it.progress === "number") ? it.progress : (parseFloat(it.progress) || 0);
+  return Math.max(0, Math.min(100, Math.round(raw)));
+}
+function hasIssueOf(it) { return !!(it.gap && String(it.gap).trim()); }
+
+// 항목 배열 통계
+function calcStats(items) {
+  const list = items || [];
+  const n = list.length;
+  let sum = 0, done = 0, issues = 0, star = 0;
+  list.forEach(it => {
+    const p = progOf(it);
+    sum += p;
+    if (p >= 100) done++;
+    if (hasIssueOf(it)) issues++;
+    if (isStarItem(it)) star++;
+  });
+  return { n, avg: n ? Math.round(sum / n) : 0, done, issues, star, inProgress: n - done };
+}
+
+function deptStats(teams) {
+  let all = [];
+  TEAM_ORDER.forEach(k => { const t = teams[k]; if (t && t.items) all = all.concat(t.items); });
+  return calcStats(all);
+}
+
+function fmtStamp(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const p = n => String(n).padStart(2, "0");
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// 본부 전체 요약 스트립
+function renderDeptSummary(teams) {
+  const el = document.getElementById("dept-summary");
+  if (!el) return;
+  const s = deptStats(teams);
+  const stamp = fmtStamp(LAST_DATA && LAST_DATA.generatedAt);
+  el.innerHTML = `
+    <div class="ds-row">
+      <div class="ds-item"><span class="ds-num">${s.n}</span><span class="ds-lab">총 과제</span></div>
+      <div class="ds-item"><span class="ds-num">${s.avg}%</span><span class="ds-lab">평균 진척</span></div>
+      <div class="ds-item"><span class="ds-num">${s.done}</span><span class="ds-lab">완료</span></div>
+      <div class="ds-item"><span class="ds-num">${s.inProgress}</span><span class="ds-lab">진행중</span></div>
+      <div class="ds-item ds-issue"><span class="ds-num">${s.issues}</span><span class="ds-lab">이슈</span></div>
+      <div class="ds-item ds-star"><span class="ds-num">${s.star}</span><span class="ds-lab">핵심</span></div>
+      ${stamp ? `<div class="ds-stamp">기준 ${escape(stamp)}</div>` : ""}
+    </div>
+  `;
 }
 
 function bindTeamToolbar() {
@@ -393,25 +452,55 @@ function bindTeamToolbar() {
   });
 }
 
+// 검색 / 전체 펼치기·접기 / 인쇄
+function bindToolbarExtras() {
+  const search = document.getElementById("team-search");
+  if (search) {
+    search.value = TEAM_SEARCH;
+    search.oninput = () => {
+      TEAM_SEARCH = search.value.trim();
+      if (LAST_DATA) renderTeams(LAST_DATA.teams || {});
+    };
+  }
+  const toggle = document.getElementById("toggle-all");
+  if (toggle) {
+    toggle.onclick = () => {
+      const blocks = Array.from(document.querySelectorAll(".team-block"));
+      const anyOpen = blocks.some(b => !b.classList.contains("is-collapsed"));
+      blocks.forEach(b => b.classList.toggle("is-collapsed", anyOpen));
+    };
+  }
+  const printBtn = document.getElementById("print-btn");
+  if (printBtn) printBtn.onclick = () => window.print();
+}
+
+function matchesSearch(it, q) {
+  if (!q) return true;
+  const hay = [it.title, it.goal, it.fact, it.plan, it.gap, it.action, it.part]
+    .map(x => String(x || "")).join(" ").toLowerCase();
+  return hay.indexOf(q.toLowerCase()) >= 0;
+}
+
 function renderTeams(teams) {
   const el = document.getElementById("teams");
   if (!el) return;
   const filter = TEAM_FILTER;
+  const q = TEAM_SEARCH;
 
   el.innerHTML = TEAM_ORDER.map(k => {
     const t = teams[k];
     if (!t || !t.items || !t.items.length) return "";
 
-    // 필터 (핵심만 / 이슈만)
+    // 필터 (핵심만 / 이슈만) + 키워드 검색
     let items = t.items.slice();
     if (filter === "star")  items = items.filter(isStarItem);
-    if (filter === "delay") items = items.filter(it => it.gap && String(it.gap).trim());
+    if (filter === "delay") items = items.filter(hasIssueOf);
+    if (q)                  items = items.filter(it => matchesSearch(it, q));
     if (!items.length) return "";
 
     const meta = TEAM_META[k];
-    // 시작일/종료일이 하나라도 있으면 타임라인에 날짜 라벨 표시
     const hasDates = items.some(it => (it.startDate && String(it.startDate).trim()) || (it.endDate && String(it.endDate).trim()));
-    const colCount = 4;   // 업무(제목+기간·진척율) · 목적 · 금주업무 · 차주업무
+    const colCount = 4;   // 업무 · 목적 · 금주업무 · 차주업무
 
     const groups = groupByPart(items);
     const bodyRows = groups.map(g => {
@@ -422,7 +511,12 @@ function renderTeams(teams) {
       return partHeader + sorted.map(it => renderItemRow(it, hasDates)).join("");
     }).join("");
 
-    const colgroup = `<col style="width:34%"/><col style="width:18%"/><col style="width:24%"/><col style="width:24%"/>`;
+    // 팀 헤더 미니 지표 (표시 중인 항목 기준)
+    const st = calcStats(items);
+    const metric = `평균 ${st.avg}% · ${st.n}건${st.issues ? ` · 이슈 ${st.issues}` : ""}`;
+
+    // 컬럼 폭 정규화: 업무 28 / 목적 24 / 금주 24 / 차주 24
+    const colgroup = `<col style="width:28%"/><col style="width:24%"/><col style="width:24%"/><col style="width:24%"/>`;
 
     return `
       <section class="team-block" id="${meta.id}">
@@ -430,6 +524,7 @@ function renderTeams(teams) {
           <span class="team-dot" aria-hidden="true"></span>
           <span class="team-name">${escape(t.name)}</span>
           <span class="team-sub">${escape(meta.summary)}</span>
+          <span class="team-metric">${escape(metric)}</span>
           <span class="collapse-caret" aria-hidden="true">▾</span>
         </header>
         <div class="work-table-wrap">
@@ -451,7 +546,7 @@ function renderTeams(teams) {
   }).join("");
 
   if (!el.innerHTML.trim()) {
-    el.innerHTML = `<div class="loading">조건에 맞는 항목이 없습니다.</div>`;
+    el.innerHTML = `<div class="loading">${q ? `‘${escape(q)}’ 검색 결과가 없습니다.` : "조건에 맞는 항목이 없습니다."}</div>`;
   }
 
   el.querySelectorAll(".team-card-head").forEach(h => {
@@ -476,20 +571,18 @@ function groupByPart(items) {
   return groups;
 }
 
-// 진척율 색: 100% 그린 / 50~99% 블루 / 50% 미만 레드
+// 진척율 색: 100% 그린 / 50~99% 블루 / 50% 미만 레드(앰버 톤)
 function progClass(pct) {
   if (pct >= 100) return "p-done";
   if (pct >= 50)  return "p-go";
   return "p-low";
 }
 
-/* 기간 + 진척율 블록 (v5.3) — 업무 제목 바로 아래에 배치
+/* 기간 + 진척율 블록 — 제목 아래 음영 박스
  *  시작일 ─ 진척막대 ─ 종료일 ─ % (막대 왼쪽=시작일, 오른쪽=종료일, 채움=진척률)
- *  날짜가 팀에 하나도 없으면(hasDates=false) 막대 + % 만 표시
  */
 function timelineBlock(it, hasDates) {
-  const raw = (typeof it.progress === "number") ? it.progress : (parseFloat(it.progress) || 0);
-  const pct = Math.max(0, Math.min(100, Math.round(raw)));
+  const pct = progOf(it);
   const cls = progClass(pct);
   const zeroAttr = pct === 0 ? ' data-zero="1"' : "";
 
@@ -517,7 +610,7 @@ function renderItemRow(it, hasDates) {
   const isStar = isStarItem(it);
   const titleClean = title.replace(/^\s*\[★\]\s*/, "").replace(/^\s*★\s*/, "").trim();
 
-  const hasIssue = !!(it.gap && String(it.gap).trim());
+  const hasIssue = hasIssueOf(it);
   const dash = s => (s && String(s).trim()) ? escapeML(s) : '<span class="muted">-</span>';
 
   // 차주업무 = 계획(plan) + (있으면) 액션(action)
@@ -527,7 +620,7 @@ function renderItemRow(it, hasDates) {
   }
   if (!planHtml) planHtml = '<span class="muted">-</span>';
 
-  // 이슈사항: 있는 항목만 작은 '!' 아이콘 + 호버 툴팁 (data-tip 은 줄바꿈 유지)
+  // 이슈: 있는 항목만 작은 '!' 아이콘 + 호버 툴팁
   const issueFlag = hasIssue
     ? `<span class="issue-flag" tabindex="0" role="note" aria-label="이슈사항" data-tip="${escape(it.gap)}">!</span>`
     : "";
@@ -686,7 +779,6 @@ function escape(s) {
     .replace(/"/g, "&quot;");
 }
 
-/* 셀 안 줄바꿈(\n)을 화면에서도 줄바꿈으로 표시 */
 function escapeML(s) {
   return escape(s).replace(/\r\n|\r|\n/g, "<br>");
 }
