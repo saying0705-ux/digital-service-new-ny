@@ -1,10 +1,10 @@
 /**
- * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.2 (기간·진척율 통합 타임라인)
- *  - 팀별 주요 실적: HR 표 형식 (업무·목적·[기간·진척율]·금주업무·지연사유·차주업무)
- *  - v5.2 변경: '기간' 열과 '진척율' 열을 하나의 고정폭 타임라인 셀로 통합
- *      · 시작일 ─ 진척막대 ─ 종료일 을 한 줄에 배치 (막대 왼쪽=시작일, 오른쪽=종료일)
- *      · 막대 채움 = 진척률 (동일 축: 진척 시작=기간 시작일, 진척 끝=기간 종료일)
- *      · 타임라인 영역은 고정폭(약 188px) → 업무 제목이 길어져도 레이아웃 유지
+ * 디지털서비스본부 주간 대시보드 — 프론트엔드 v5.3 (컴팩트 4컬럼 + 이슈 호버)
+ *  - 팀별 주요 실적: 4컬럼 표 (업무[제목+기간·진척율] · 목적 · 금주업무 · 차주업무)
+ *  - v5.3 변경:
+ *      · 기간·진척율을 업무 '제목 바로 아래'로 이동 → 좌우 폭 대폭 축소(6→4컬럼)
+ *      · 시작일 ─ 진척막대 ─ 종료일 ─ % 한 줄 (막대 왼쪽=시작일, 오른쪽=종료일, 채움=진척률)
+ *      · '지연사유' 상시 컬럼 제거 → '이슈' 배지(있는 항목만) + 마우스오버 툴팁으로 표시
  *      · 진척률: 100% 그린 / 50~99% 블루 / 50%미만·0% 레드
  *  - 본문(진행/예정 등) 안의 http(s)·www·이메일은 자동으로 클릭 링크 처리
  *
@@ -15,10 +15,6 @@
 
 /* ============================================================
  *  ★ 연동 설정 — 여기 한 줄만 새 시트의 웹앱 URL로 맞추면 됩니다 ★
- *  새 구글시트(복사본)는 자체 웹앱 URL이 없으므로, 시트의
- *  [확장 프로그램 > Apps Script > 배포 > 새 배포 > 웹 앱]에서 발급한
- *  https://script.google.com/macros/s/...../exec  주소를 붙여넣으세요.
- *  (기존 스크립트를 그대로 재배포했다면 URL이 같으므로 수정 불필요)
  * ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbzYzyEAhX2wxxHsjeZ8bmOTBpVjKKy9jvBsAqQz3SwZGY3Vs0HcK-T-e_NZ8S4dZ1-NjA/exec";
 
@@ -85,7 +81,7 @@ function bindTopBar() {
 function fillWeekDropdown(weeks, currentKey) {
   const select = document.getElementById("week-select");
   if (!select) return;
-  if (!weeks || !weeks.length) return;          // 데이터에 주차 목록이 없으면 기존 옵션 유지
+  if (!weeks || !weeks.length) return;
   select.innerHTML = "";
   weeks.forEach((w, i) => {
     const opt = document.createElement("option");
@@ -189,7 +185,7 @@ function render(d) {
         <span class="tf-label">보기</span>
         <button type="button" class="tf-btn active" data-filter="all">전체</button>
         <button type="button" class="tf-btn" data-filter="star">핵심만</button>
-        <button type="button" class="tf-btn" data-filter="delay">지연만</button>
+        <button type="button" class="tf-btn" data-filter="delay">이슈만</button>
       </div>
     `);
     parts.push(`<div id="teams"></div>`);
@@ -224,7 +220,7 @@ function render(d) {
   }
 
   bindTeamToolbar();
-  linkify(root);   // 본문 URL/이메일 → 클릭 링크
+  linkify(root);
 
   setupNavScroll({
     overview: hasMessages,
@@ -378,7 +374,7 @@ function renderCeo(items) {
   `;
 }
 
-/* ===== 팀별 주요 실적 — HR 표 양식 (v5.2, 기간·진척율 통합 타임라인) ===== */
+/* ===== 팀별 주요 실적 — 컴팩트 4컬럼 (v5.3) ===== */
 function isStarItem(it) {
   const t = String(it.title || "");
   return it.isStar === true || /^\s*\[★\]\s*/.test(t) || /^\s*★\s*/.test(t);
@@ -406,16 +402,16 @@ function renderTeams(teams) {
     const t = teams[k];
     if (!t || !t.items || !t.items.length) return "";
 
-    // 필터 적용 (핵심만 / 지연만)
+    // 필터 (핵심만 / 이슈만)
     let items = t.items.slice();
     if (filter === "star")  items = items.filter(isStarItem);
     if (filter === "delay") items = items.filter(it => it.gap && String(it.gap).trim());
     if (!items.length) return "";
 
     const meta = TEAM_META[k];
-    // 이 팀에 시작일/종료일이 하나라도 있으면 타임라인에 날짜 라벨 표시
+    // 시작일/종료일이 하나라도 있으면 타임라인에 날짜 라벨 표시
     const hasDates = items.some(it => (it.startDate && String(it.startDate).trim()) || (it.endDate && String(it.endDate).trim()));
-    const colCount = 6;   // 업무·목적·[기간·진척율]·금주업무·지연사유·차주업무
+    const colCount = 4;   // 업무(제목+기간·진척율) · 목적 · 금주업무 · 차주업무
 
     const groups = groupByPart(items);
     const bodyRows = groups.map(g => {
@@ -426,9 +422,7 @@ function renderTeams(teams) {
       return partHeader + sorted.map(it => renderItemRow(it, hasDates)).join("");
     }).join("");
 
-    // 기간·진척율 열은 고정폭(188px), 나머지는 % — 제목이 길어져도 타임라인 폭 유지
-    const timelineHead = hasDates ? "기간 · 진척율" : "진척율";
-    const colgroup = `<col style="width:17%"/><col style="width:16%"/><col style="width:188px"/><col style="width:18%"/><col style="width:14%"/><col style="width:19%"/>`;
+    const colgroup = `<col style="width:34%"/><col style="width:18%"/><col style="width:24%"/><col style="width:24%"/>`;
 
     return `
       <section class="team-block" id="${meta.id}">
@@ -443,11 +437,9 @@ function renderTeams(teams) {
             <colgroup>${colgroup}</colgroup>
             <thead>
               <tr>
-                <th>업무</th>
+                <th class="c-task-h">업무 · 기간 · 진척율</th>
                 <th>목적</th>
-                <th class="c-timeline-h">${timelineHead}</th>
                 <th>금주업무</th>
-                <th>지연사유</th>
                 <th>차주업무</th>
               </tr>
             </thead>
@@ -462,12 +454,11 @@ function renderTeams(teams) {
     el.innerHTML = `<div class="loading">조건에 맞는 항목이 없습니다.</div>`;
   }
 
-  // 팀 헤더 클릭 → 접기/펼치기
   el.querySelectorAll(".team-card-head").forEach(h => {
     h.onclick = () => h.closest(".team-block").classList.toggle("is-collapsed");
   });
 
-  linkify(el);   // 재렌더(필터) 후에도 링크 유지
+  linkify(el);
 }
 
 function groupByPart(items) {
@@ -492,12 +483,11 @@ function progClass(pct) {
   return "p-low";
 }
 
-/* 기간 + 진척율 통합 셀 (v5.2)
- *  - 시작일 ─ 진척막대 ─ 종료일 을 한 줄에 (막대 왼쪽=시작일, 오른쪽=종료일)
- *  - 막대 채움 = 진척률 (동일 축)
- *  - 날짜가 팀에 하나도 없으면(hasDates=false) 막대 + % 만 표시
+/* 기간 + 진척율 블록 (v5.3) — 업무 제목 바로 아래에 배치
+ *  시작일 ─ 진척막대 ─ 종료일 ─ % (막대 왼쪽=시작일, 오른쪽=종료일, 채움=진척률)
+ *  날짜가 팀에 하나도 없으면(hasDates=false) 막대 + % 만 표시
  */
-function timelineCell(it, hasDates) {
+function timelineBlock(it, hasDates) {
   const raw = (typeof it.progress === "number") ? it.progress : (parseFloat(it.progress) || 0);
   const pct = Math.max(0, Math.min(100, Math.round(raw)));
   const cls = progClass(pct);
@@ -513,14 +503,12 @@ function timelineCell(it, hasDates) {
   }
 
   return `
-    <td class="c-timeline ${cls}"${zeroAttr}>
-      <div class="tl-row">
-        ${startLbl}
-        <div class="tl-track" role="img" aria-label="기간 대비 진척률 ${pct}퍼센트"><div class="tl-fill" style="width:${pct}%;"></div></div>
-        ${endLbl}
-      </div>
-      <div class="tl-pct">${pct}%</div>
-    </td>
+    <div class="tl-block ${cls}"${zeroAttr}>
+      ${startLbl}
+      <div class="tl-track" role="img" aria-label="기간 대비 진척률 ${pct}퍼센트"><div class="tl-fill" style="width:${pct}%;"></div></div>
+      ${endLbl}
+      <span class="tl-pct">${pct}%</span>
+    </div>
   `;
 }
 
@@ -529,32 +517,36 @@ function renderItemRow(it, hasDates) {
   const isStar = isStarItem(it);
   const titleClean = title.replace(/^\s*\[★\]\s*/, "").replace(/^\s*★\s*/, "").trim();
 
-  const hasDelay = !!(it.gap && String(it.gap).trim());
+  const hasIssue = !!(it.gap && String(it.gap).trim());
   const dash = s => (s && String(s).trim()) ? escapeML(s) : '<span class="muted">-</span>';
 
+  // 차주업무 = 계획(plan) + (있으면) 액션(action)
   let planHtml = (it.plan && String(it.plan).trim()) ? escapeML(it.plan) : "";
   if (it.action && String(it.action).trim()) {
     planHtml += (planHtml ? '<div class="sub-action">↳ ' : '<span class="sub-action">') + escapeML(it.action) + (planHtml ? '</div>' : '</span>');
   }
   if (!planHtml) planHtml = '<span class="muted">-</span>';
 
+  // 이슈사항: 있는 항목만 제목 옆 배지 + 호버 툴팁 (data-tip 은 줄바꿈 유지)
+  const issueFlag = hasIssue
+    ? `<span class="issue-flag" tabindex="0" role="note" aria-label="이슈사항" data-tip="${escape(it.gap)}"><span class="if-ic" aria-hidden="true">!</span>이슈</span>`
+    : "";
+
   const taskCell = `
-    ${isStar ? '<span class="star-mark" aria-hidden="true">★</span>' : ""}
-    <span class="task-name">${escape(titleClean)}</span>
-    ${isStar ? '<span class="key-badge">핵심</span>' : ""}
+    <div class="task-line">
+      ${isStar ? '<span class="star-mark" aria-hidden="true">★</span>' : ""}
+      <span class="task-name">${escape(titleClean)}</span>
+      ${isStar ? '<span class="key-badge">핵심</span>' : ""}
+      ${issueFlag}
+    </div>
+    ${timelineBlock(it, hasDates)}
   `;
 
-  const delayCell = hasDelay
-    ? `<td class="c-delay has-delay"><span class="delay-flag" aria-hidden="true">!</span>${escapeML(it.gap)}</td>`
-    : `<td class="c-delay"><span class="muted">-</span></td>`;
-
   return `
-    <tr class="${isStar ? "is-star" : ""}">
+    <tr class="${isStar ? "is-star" : ""}${hasIssue ? " has-issue" : ""}">
       <td class="c-task">${taskCell}</td>
       <td class="c-purpose">${dash(it.goal)}</td>
-      ${timelineCell(it, hasDates)}
       <td class="c-notes">${dash(it.fact)}</td>
-      ${delayCell}
       <td class="c-plan">${planHtml}</td>
     </tr>
   `;
@@ -593,7 +585,7 @@ function priorityClass(priority) {
 function linkify(root) {
   if (!root) return;
   const rx = /((https?:\/\/|www\.)[^\s<>"']+)|([\w.+-]+@[\w-]+\.[\w.-]+)/g;
-  const cells = root.querySelectorAll(".c-task, .c-purpose, .c-notes, .c-delay, .c-plan, .decision-body, .decision-action, .ceo-table td, .sbody");
+  const cells = root.querySelectorAll(".c-task, .c-purpose, .c-notes, .c-plan, .decision-body, .decision-action, .ceo-table td, .sbody");
   cells.forEach(cell => {
     const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, null);
     const nodes = [];
@@ -695,7 +687,7 @@ function escape(s) {
     .replace(/"/g, "&quot;");
 }
 
-/* 셀 안 줄바꿈(\n)을 화면에서도 줄바꿈으로 표시 — HTML 이스케이프 후 <br> 변환 */
+/* 셀 안 줄바꿈(\n)을 화면에서도 줄바꿈으로 표시 */
 function escapeML(s) {
   return escape(s).replace(/\r\n|\r|\n/g, "<br>");
 }

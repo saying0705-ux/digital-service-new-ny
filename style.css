@@ -1,6 +1,7 @@
 /* ============================================================
- * 디지털서비스본부 주간 대시보드 — v5.2 스타일 (HR 클린 톤)
- *  - v5.2: 팀별 실적 '기간·진척율' 통합 타임라인 셀 추가
+ * 디지털서비스본부 주간 대시보드 — v5.3 스타일 (HR 클린 톤)
+ *  - v5.3: 컴팩트 4컬럼(제목 아래 기간·진척율) + 이슈 호버 배지
+ *  - v5.2: 팀별 실적 '기간·진척율' 통합 타임라인 셀
  * ============================================================ */
 
 :root {
@@ -216,8 +217,8 @@ a { color: inherit; text-decoration: none; }
 .team-card-head.t-netimes    .team-dot { background: var(--team-netimes); }
 .team-card-head.t-ax         .team-dot { background: var(--team-ax); }
 
-.work-table-wrap { overflow-x: auto; }
-.work-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 12.8px; table-layout: fixed; }
+.work-table-wrap { overflow: visible; }
+.work-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 12.8px; table-layout: fixed; }
 .work-table thead th { background: #F3F5F8; color: var(--text-soft); font-weight: 600; font-size: 12px; text-align: center; padding: 11px 10px; border-bottom: 1px solid var(--border-strong); white-space: nowrap; }
 .work-table tbody td { padding: 13px 12px; border-bottom: 1px solid var(--border); color: var(--text-main); vertical-align: top; line-height: 1.5; }
 .work-table tbody tr:last-child td { border-bottom: none; }
@@ -346,28 +347,71 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-app
 .inline-link:hover { color: var(--brand); }
 
 /* ============================================================
- * v5.2 — 기간 · 진척율 통합 타임라인 셀
- *  고정폭 열(≈188px). 시작일 ─ 진척막대 ─ 종료일 을 한 줄에.
- *  (막대 왼쪽=시작일, 오른쪽=종료일, 채움=진척률 — 동일 축)
+ * v5.3 — 컴팩트 4컬럼: 업무 제목 아래 기간·진척율 / 이슈 호버 배지
  * ============================================================ */
-.work-table .c-timeline-h { text-align: center; }
-.work-table .c-timeline { text-align: center; vertical-align: middle; white-space: nowrap; }
 
-.tl-row { display: flex; align-items: center; gap: 7px; }
-.tl-date { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-soft); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.tl-date .muted { color: var(--text-faded); }
+/* 업무 셀: 제목 줄 + 그 아래 타임라인 블록 */
+.work-table .c-task { font-weight: 400; }
+.work-table .c-task .task-line {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  font-weight: 700; color: var(--text-strong); line-height: 1.4;
+}
+.work-table .c-task .task-name { font-weight: 700; }
 
-.tl-track { flex: 1 1 auto; min-width: 42px; height: 8px; background: var(--prog-track); border-radius: 999px; overflow: hidden; }
-.tl-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
-.tl-pct { margin-top: 5px; text-align: center; font-size: 12.5px; font-weight: 800; color: var(--text-strong); }
+/* 기간 ─ 막대 ─ 종료일 ─ % : 제목 바로 아래 한 줄 */
+.tl-block { display: flex; align-items: center; gap: 8px; margin-top: 8px; max-width: 340px; white-space: nowrap; }
+.tl-block .tl-date { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--text-soft); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tl-block .tl-date .muted { color: var(--text-faded); }
+.tl-block .tl-track { flex: 1 1 auto; min-width: 54px; max-width: 160px; height: 8px; background: var(--prog-track); border-radius: 999px; overflow: hidden; }
+.tl-block .tl-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
+.tl-block .tl-pct { flex-shrink: 0; font-size: 12px; font-weight: 800; color: var(--text-strong); }
 
 /* 진척 색: 100% 그린 / 50~99% 블루 / 50%미만 레드 */
-.c-timeline.p-done .tl-fill { background: var(--prog-done); }
-.c-timeline.p-done .tl-pct  { color: var(--status-good); }
-.c-timeline.p-go   .tl-fill { background: var(--prog-go); }
-.c-timeline.p-go   .tl-pct  { color: var(--brand-deep); }
-.c-timeline.p-low  .tl-fill { background: var(--prog-low); }
-.c-timeline.p-low  .tl-pct  { color: var(--prog-low); }
-/* 0% 는 레드로 강조 */
-.c-timeline[data-zero="1"] .tl-fill { background: var(--prog-low); }
-.c-timeline[data-zero="1"] .tl-pct  { color: var(--prog-low); }
+.tl-block.p-done .tl-fill { background: var(--prog-done); }
+.tl-block.p-done .tl-pct  { color: var(--status-good); }
+.tl-block.p-go   .tl-fill { background: var(--prog-go); }
+.tl-block.p-go   .tl-pct  { color: var(--brand-deep); }
+.tl-block.p-low  .tl-fill { background: var(--prog-low); }
+.tl-block.p-low  .tl-pct  { color: var(--prog-low); }
+.tl-block[data-zero="1"] .tl-fill { background: var(--prog-low); }
+.tl-block[data-zero="1"] .tl-pct  { color: var(--prog-low); }
+
+/* 이슈 배지 — 있는 항목만 제목 옆에. 호버/포커스 시 툴팁 */
+.issue-flag {
+  position: relative; display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 8px 1px 5px; font-size: 10.5px; font-weight: 700;
+  color: #B45309; background: #FFF3E0; border: 1px solid #FCD9A0;
+  border-radius: 999px; cursor: help; white-space: nowrap;
+}
+.issue-flag .if-ic {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--prog-delay); color: #fff; font-size: 9px; font-weight: 800; line-height: 1;
+}
+.issue-flag:hover, .issue-flag:focus { background: #FFE8CC; outline: none; }
+.issue-flag::after {
+  content: attr(data-tip);
+  position: absolute; left: 0; top: calc(100% + 8px);
+  background: #1F2A37; color: #fff; font-size: 12px; font-weight: 500;
+  padding: 9px 12px; border-radius: 8px; white-space: pre-wrap;
+  width: max-content; max-width: 300px; line-height: 1.55; text-align: left;
+  opacity: 0; pointer-events: none; transition: opacity .15s ease;
+  z-index: 200; box-shadow: 0 6px 20px rgba(31, 42, 55, 0.22);
+}
+.issue-flag::before {
+  content: ""; position: absolute; left: 14px; top: calc(100% + 2px);
+  border: 6px solid transparent; border-bottom-color: #1F2A37;
+  opacity: 0; pointer-events: none; transition: opacity .15s ease; z-index: 200;
+}
+.issue-flag:hover::after, .issue-flag:focus::after,
+.issue-flag:hover::before, .issue-flag:focus::before { opacity: 1; }
+
+/* 이슈 있는 행: 업무 셀 왼쪽에 옅은 주황 라인으로 살짝 표식 */
+.work-table tr.has-issue .c-task { box-shadow: inset 3px 0 0 var(--prog-delay); }
+.work-table tr.is-star.has-issue .c-task { box-shadow: inset 3px 0 0 var(--star-main); }
+
+/* 모바일에서만 표 가로 스크롤 허용 (툴팁 잘림 방지 위해 데스크톱은 visible) */
+@media (max-width: 760px) {
+  .work-table-wrap { overflow-x: auto; }
+  .work-table { min-width: 640px; }
+}
