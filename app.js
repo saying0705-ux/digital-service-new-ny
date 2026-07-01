@@ -13,7 +13,7 @@
  *  ※ 데이터 연동 한 곳: 아래 API_URL.
  */
 
-const API_URL = "https://script.google.com/macros/s/AKfycbz_sRhIpy7ylRvkhyyBjKBgQ13jQnkDmGBlqqbjGe5q6KcN3gZH7ey-4pOFmD5A46XZAQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzYzyEAhX2wxxHsjeZ8bmOTBpVjKKy9jvBsAqQz3SwZGY3Vs0HcK-T-e_NZ8S4dZ1-NjA/exec";
 
 const NAV_OFFSET = 140;
 let navClickGuard = 0;
