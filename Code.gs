@@ -1,5 +1,12 @@
 /**
- * 디지털서비스본부 주간 대시보드 — Apps Script Web App v5.0
+ * 디지털서비스본부 주간 대시보드 — Apps Script Web App v6.1
+ *
+ * v6.1 (조직개편 반영)
+ *  - TEAM_KEYS / parseTeamItems 팀 목록 변경
+ *      · 신규: 콘텐츠기획팀(content) / 퍼블리싱자동화팀(publishing)
+ *      · 폐지: 디지털마케팅팀(marketing) / NE Times팀(netimes)
+ *        → 과거 주차 시트 조회를 위해 키는 그대로 남겨둡니다.
+ *          해당 주차에 행이 없으면 대시보드에서 자동으로 숨겨집니다.
  *
  * v5.0 (HR 표 양식)
  *  - parseTeamItems: 팀별 주요 실적에 '시작일(J열)' / '종료일(K열)' 파싱 추가
@@ -75,7 +82,7 @@ function doGet(e) {
       weekLabel: parseWeekLabel(requestedWeek),
       weeks,
       generatedAt: new Date().toISOString(),
-      version: 'v5.0',
+      version: 'v6.1',
       cover:        parseCover(data, sections['보고 정보']),
       messages:     parseMessages(data, sections['핵심 메시지']),
       kpis:         parseKpis(data, sections['본부 핵심']),
@@ -326,22 +333,29 @@ function parseCeoDirective(data, startIdx) {
   return items;
 }
 
+/* 시트 B열(팀)에 입력되는 팀명 → 내부 코드 매핑.
+ * 폐지된 '디지털마케팅팀' / 'NE Times팀' 은 과거 주차 시트 조회를 위해 그대로 둡니다.
+ * (해당 주차에 행이 없으면 대시보드에서 자동으로 숨겨짐) */
 const TEAM_KEYS = {
-  '디지털마케팅팀': 'marketing',
-  '서비스운영팀':   'operations',
-  '서비스기획팀':   'planning',
-  'NE Times팀':     'netimes',
-  'AX팀':           'ax',
+  '콘텐츠기획팀':     'content',
+  '서비스운영팀':     'operations',
+  '서비스기획팀':     'planning',
+  '퍼블리싱자동화팀': 'publishing',
+  'AX팀':             'ax',
+  '디지털마케팅팀':   'marketing',   // (폐지) 과거 주차 표시용
+  'NE Times팀':       'netimes',     // (폐지) 과거 주차 표시용
 };
 
 function parseTeamItems(data, startIdx) {
   if (startIdx == null) return {};
   const teams = {
-    marketing:  { code: 'marketing',  name: '디지털마케팅팀', items: [] },
-    operations: { code: 'operations', name: '서비스운영팀',   items: [] },
-    planning:   { code: 'planning',   name: '서비스기획팀',   items: [] },
-    netimes:    { code: 'netimes',    name: 'NE Times팀',     items: [] },
-    ax:         { code: 'ax',         name: 'AX팀',           items: [] },
+    content:    { code: 'content',    name: '콘텐츠기획팀',     items: [] },
+    operations: { code: 'operations', name: '서비스운영팀',     items: [] },
+    planning:   { code: 'planning',   name: '서비스기획팀',     items: [] },
+    publishing: { code: 'publishing', name: '퍼블리싱자동화팀', items: [] },
+    ax:         { code: 'ax',         name: 'AX팀',             items: [] },
+    marketing:  { code: 'marketing',  name: '디지털마케팅팀',   items: [] },  // (폐지) 과거 주차 표시용
+    netimes:    { code: 'netimes',    name: 'NE Times팀',       items: [] },  // (폐지) 과거 주차 표시용
   };
   let inTable = false;
   for (let i = startIdx + 1; i < data.length; i++) {
@@ -389,12 +403,26 @@ function isShown(v) {
   return false;
 }
 
+/** 진척률 셀 → 0~100 정수 (퍼센트 서식·문자열·숫자 모두 허용) */
 function parseProgress(v) {
   if (v === '' || v == null) return 0;
-  if (typeof v === 'number') return v <= 1 ? Math.round(v * 100) : Math.round(v);
-  const n = parseFloat(String(v).replace(/[%\s]/g, ''));
-  return isNaN(n) ? 0 : Math.round(n);
+  if (typeof v === 'number') {
+    const n = (v > 0 && v <= 1) ? v * 100 : v;
+    return Math.max(0, Math.min(100, Math.round(n)));
+  }
+  const s = String(v).replace(/[\s]/g, '');
+  const m = s.match(/-?\d+(\.\d+)?/);
+  if (!m) return 0;
+  let n = parseFloat(m[0]);
+  if (isNaN(n)) return 0;
+  if (s.indexOf('%') === -1 && n > 0 && n <= 1) n = n * 100;
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
+
+/* 의사결정 요청 표
+ *  컬럼: A 우선순위 | B 타이틀(B:C 병합) | D 본문(D:F 병합) | G 필요 액션 | H 마감일
+ *  긴급 → 중요 → 참고 순으로 정렬 */
+const DECISION_PRIORITY_ORDER = { '긴급': 0, 'P0': 0, '중요': 1, 'P1': 1, '참고': 2, 'P2': 2 };
 
 function parseDecisions(data, startIdx) {
   if (startIdx == null) return [];
@@ -407,18 +435,17 @@ function parseDecisions(data, startIdx) {
     if (a === '우선순위') { inTable = true; continue; }
     if (!inTable) continue;
     if (!a) continue;
-    if (!/^(긴급|중요|참고|P[012])$/i.test(a)) continue;
-    const title = String(row[1] || '').trim();
-    if (!title) continue;
-    items.push({
-      priority: a,
-      title:    title,
-      body:     String(row[3] || '').trim(),
-      action:   String(row[6] || '').trim(),
-      deadline: String(row[7] || '').trim(),
-    });
+    const title    = String(row[1] || '').trim();
+    const body     = String(row[3] || '').trim();
+    const action   = String(row[6] || '').trim();
+    const deadline = formatDate(row[7]);
+    if (!title && !body && !action) continue;
+    items.push({ priority: a, title, body, action, deadline });
   }
-  const rank = p => (p === '긴급' || p === 'P0' || p === 'PO') ? 0 : (p === '중요' || p === 'P1') ? 1 : 2;
-  items.sort((x, y) => rank(x.priority) - rank(y.priority));
+  items.sort((x, y) => {
+    const px = (x.priority in DECISION_PRIORITY_ORDER) ? DECISION_PRIORITY_ORDER[x.priority] : 9;
+    const py = (y.priority in DECISION_PRIORITY_ORDER) ? DECISION_PRIORITY_ORDER[y.priority] : 9;
+    return px - py;
+  });
   return items;
 }

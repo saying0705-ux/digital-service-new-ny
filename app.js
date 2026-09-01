@@ -1,5 +1,5 @@
 /**
- * 디지털서비스본부 주간 대시보드 — 프론트엔드 v6.0 (고도화)
+ * 디지털서비스본부 주간 대시보드 — 프론트엔드 v6.1 (조직개편 반영)
  *  - 팀별 주요 실적: 4컬럼 표 (업무[제목+기간·진척율] · 목적 · 금주업무 · 차주업무)
  *      · 컬럼 폭 정규화: 28 / 24 / 24 / 24
  *      · 제목 아래 기간·진척율을 '음영 박스'로 분리
@@ -9,6 +9,11 @@
  *      · 팀 헤더 미니 지표(평균 % · N건 · 이슈)
  *      · 과제 키워드 검색 / 전체 펼치기·접기 / 인쇄(PDF) 버튼 + 인쇄 최적화 스타일
  *  - 본문 안의 http(s)·www·이메일은 자동 클릭 링크 처리
+ *
+ *  - v6.1 조직개편:
+ *      · 신규 팀 추가 — 콘텐츠기획팀(content) / 퍼블리싱자동화팀(publishing)
+ *      · 폐지 팀(디지털마케팅팀 / NE Times팀)은 과거 주차 조회용으로만 유지
+ *        → 해당 주차에 데이터가 없으면 섹션·탭이 자동으로 숨겨집니다.
  *
  *  ※ 데이터 연동 한 곳: 아래 API_URL.
  */
@@ -90,18 +95,25 @@ function fillWeekDropdown(weeks, currentKey) {
   });
 }
 
-const TEAM_ORDER = ["marketing", "operations", "planning", "netimes", "ax"];
+/* 표시 순서 — 신규 조직 기준.
+ * marketing / netimes 는 폐지된 팀이지만 과거 주차 시트를 열람할 때 필요하므로 남겨둡니다.
+ * 해당 주차에 항목이 없으면 섹션도 상단 탭도 자동으로 숨겨집니다. */
+const TEAM_ORDER = ["content", "marketing", "operations", "planning", "publishing", "netimes", "ax"];
 const TEAM_DISPLAY = {
-  marketing:  "디지털마케팅팀",
+  content:    "콘텐츠기획팀",
+  marketing:  "디지털마케팅팀",   // (폐지) 과거 주차 표시용
   operations: "서비스운영팀",
   planning:   "서비스기획팀",
-  netimes:    "NE Times팀",
+  publishing: "퍼블리싱자동화팀",
+  netimes:    "NE Times팀",       // (폐지) 과거 주차 표시용
   ax:         "AX팀",
 };
 const TEAM_META = {
+  content:    { id: "content",    cls: "t-content",    summary: "콘텐츠 기획 · 프로모션 · 채널 제휴" },
   marketing:  { id: "marketing",  cls: "t-marketing",  summary: "자사몰 커머스 · NELT 플랫폼 운영" },
   operations: { id: "operations", cls: "t-operations", summary: "디지털 서비스 운영 · 자동화" },
   planning:   { id: "planning",   cls: "t-planning",   summary: "신규 서비스 기획 · 사용자 경험" },
+  publishing: { id: "publishing", cls: "t-publishing", summary: "조판 자동화 · 퍼블리싱 · 제작 효율화" },
   netimes:    { id: "netimes",    cls: "t-netimes",    summary: "B2G 채택 · 콘텐츠 제휴 · 운영 자동화" },
   ax:         { id: "ax",         cls: "t-ax",         summary: "AI 전환 · 데이터 자동화" },
 };
@@ -226,18 +238,15 @@ function render(d) {
   bindToolbarExtras();
   linkify(root);
 
-  setupNavScroll({
+  const navMap = {
     overview: hasMessages,
     "kpis-anchor": hasKpis,
     "sales-anchor": hasSales,
     ceo: hasCeo,
-    marketing:  teamPresent.marketing,
-    operations: teamPresent.operations,
-    planning:   teamPresent.planning,
-    netimes:    teamPresent.netimes,
-    ax:         teamPresent.ax,
     "decisions-anchor": hasDecisions,
-  });
+  };
+  TEAM_ORDER.forEach(k => { navMap[(TEAM_META[k] && TEAM_META[k].id) || k] = !!teamPresent[k]; });
+  setupNavScroll(navMap);
 }
 
 function renderMessages(messages) {
