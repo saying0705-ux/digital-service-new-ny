@@ -1,5 +1,5 @@
 /**
- * 디지털서비스본부 주간 대시보드 — 프론트엔드 v6.1 (조직개편 반영)
+ * 디지털서비스본부 주간 대시보드 — 프론트엔드 v6.2 (매출섹션 비표시 · 팀순서 변경)
  *  - 팀별 주요 실적: 4컬럼 표 (업무[제목+기간·진척율] · 목적 · 금주업무 · 차주업무)
  *      · 컬럼 폭 정규화: 28 / 24 / 24 / 24
  *      · 제목 아래 기간·진척율을 '음영 박스'로 분리
@@ -15,10 +15,20 @@
  *      · 폐지 팀(디지털마케팅팀 / NE Times팀)은 과거 주차 조회용으로만 유지
  *        → 해당 주차에 데이터가 없으면 섹션·탭이 자동으로 숨겨집니다.
  *
+ *  - v6.2:
+ *      · 월별 매출현황 섹션 비표시 (매출 보고 주체 채널마케팅본부 이관)
+ *        → 아래 SHOW_MONTHLY_SALES 를 true 로 바꾸면 즉시 되살아납니다.
+ *      · 팀 표시 순서 변경 — 콘텐츠기획 → 퍼블리싱자동화 → 서비스운영 → 서비스기획 → AX
+ *
  *  ※ 데이터 연동 한 곳: 아래 API_URL.
  */
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzYzyEAhX2wxxHsjeZ8bmOTBpVjKKy9jvBsAqQz3SwZGY3Vs0HcK-T-e_NZ8S4dZ1-NjA/exec";
+
+/* 월별 매출현황 섹션 표시 여부.
+ * false = 보고서에서 완전히 감춤(섹션 + 상단 탭 모두). 데이터는 그대로 남아 있으므로
+ * 나중에 다시 보여줄 때는 true 로만 바꾸면 됩니다. */
+const SHOW_MONTHLY_SALES = false;
 
 const NAV_OFFSET = 140;
 let navClickGuard = 0;
@@ -95,10 +105,10 @@ function fillWeekDropdown(weeks, currentKey) {
   });
 }
 
-/* 표시 순서 — 신규 조직 기준.
- * marketing / netimes 는 폐지된 팀이지만 과거 주차 시트를 열람할 때 필요하므로 남겨둡니다.
- * 해당 주차에 항목이 없으면 섹션도 상단 탭도 자동으로 숨겨집니다. */
-const TEAM_ORDER = ["content", "marketing", "operations", "planning", "publishing", "netimes", "ax"];
+/* 신규 주차:  콘텐츠기획 → 퍼블리싱자동화 → 서비스운영 → 서비스기획 → AX
+ * 과거 주차:  디지털마케팅 → 서비스운영 → 서비스기획 → NE Times → AX (기존 순서 유지)
+ * 폐지 팀은 항목이 없는 주차에서는 자동으로 숨겨지므로 사이에 끼워 둡니다. */
+const TEAM_ORDER = ["content", "publishing", "marketing", "operations", "planning", "netimes", "ax"];
 const TEAM_DISPLAY = {
   content:    "콘텐츠기획팀",
   marketing:  "디지털마케팅팀",   // (폐지) 과거 주차 표시용
@@ -134,7 +144,7 @@ function render(d) {
 
   const hasMessages = messages.length > 0;
   const hasKpis     = kpis.length > 0;
-  const hasSales    = (sales.rows || []).length > 0;
+  const hasSales    = SHOW_MONTHLY_SALES && (sales.rows || []).length > 0;
   const hasCeo      = ceo.length > 0;
   const teamPresent = {};
   TEAM_ORDER.forEach(k => {
